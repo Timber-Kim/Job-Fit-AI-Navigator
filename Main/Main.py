@@ -24,49 +24,46 @@ except:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # ==========================================
-# 2. 데이터 로드 함수 (탐정 모드: 파일 자동 찾기)
+# 2. 데이터 로드 함수 (최종 수정: 파싱 에러 무시 기능 추가)
 # ==========================================
 @st.cache_data
 def load_data():
     target_file = 'ai_tools.csv'
     found_path = None
 
-    # 1. 현재 작업 경로(서버의 위치) 출력해서 확인
-    print(f"현재 작업 경로: {os.getcwd()}")
-
-    # 2. 현재 폴더 및 모든 하위 폴더를 뒤져서 파일 찾기 (os.walk)
+    # 1. 파일 찾기 (탐정 모드 유지)
     for root, dirs, files in os.walk(os.getcwd()):
         if target_file in files:
             found_path = os.path.join(root, target_file)
-            print(f"🎉 파일 찾음! 위치: {found_path}")
-            break  # 찾으면 중단
-    
-    # 3. 못 찾았다면? -> 상위 폴더도 한번 더 수색 (혹시 모르니)
+            break
+            
     if found_path is None:
+        # 못 찾았을 경우 상위 폴더 검색
         parent_dir = os.path.dirname(os.getcwd())
         for root, dirs, files in os.walk(parent_dir):
             if target_file in files:
                 found_path = os.path.join(root, target_file)
                 break
 
-    # 4. 결과 처리
     if found_path is None:
-        st.error("🚨 서버 전체를 뒤져봤지만 'ai_tools.csv' 파일을 찾지 못했습니다.")
-        st.warning("⚠️ 혹시 파일명이 'ai_tools.csv.txt'로 되어 있거나, 철자가 다르진 않나요?")
-        # 디버깅용: 현재 폴더에 있는 파일 다 보여주기
-        st.write("📂 현재 폴더 파일 목록:", os.listdir(os.getcwd()))
+        st.error("🚨 파일을 찾을 수 없습니다.")
         return None
         
-    # 5. 파일 읽기 (인코딩 자동 해결)
+    # 2. 파일 읽기 (여기가 중요! UTF-8에도 on_bad_lines 옵션 추가)
     try:
-        df = pd.read_csv(found_path, encoding='utf-8')
+        # 옵션 설명: 
+        # encoding='utf-8-sig': 엑셀로 저장한 CSV의 깨짐 방지 (BOM 처리)
+        # on_bad_lines='skip': 칸 수가 안 맞는 불량 행은 쿨하게 패스
+        df = pd.read_csv(found_path, encoding='utf-8-sig', on_bad_lines='skip')
         return df
-    except:
+    except Exception as e_utf8:
+        # 혹시 UTF-8이 아니라고 할까봐 CP949도 대비
         try:
             df = pd.read_csv(found_path, encoding='cp949', on_bad_lines='skip')
             return df
-        except Exception as e:
-            st.error(f"파일은 찾았는데 읽을 수가 없습니다. 에러: {e}")
+        except Exception as e_final:
+            st.error(f"❌ 읽기 실패. 파일 내용이나 인코딩을 확인해주세요.")
+            st.error(f"상세 에러: {e_final}")
             return None
 
 # 데이터 불러오기

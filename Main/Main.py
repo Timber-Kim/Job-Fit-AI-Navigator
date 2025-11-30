@@ -24,42 +24,49 @@ except:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # ==========================================
-# 2. 데이터 로드 함수 (위치 추적 및 디버깅 기능 추가)
+# 2. 데이터 로드 함수 (탐정 모드: 파일 자동 찾기)
 # ==========================================
 @st.cache_data
 def load_data():
-    # 1. 현재 코드 파일(Main.py)의 위치 (보통 Main 폴더)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # 2. 그 상위 폴더 (보통 프로젝트 루트 폴더)
-    parent_dir = os.path.dirname(current_dir)
+    target_file = 'ai_tools.csv'
+    found_path = None
+
+    # 1. 현재 작업 경로(서버의 위치) 출력해서 확인
+    print(f"현재 작업 경로: {os.getcwd()}")
+
+    # 2. 현재 폴더 및 모든 하위 폴더를 뒤져서 파일 찾기 (os.walk)
+    for root, dirs, files in os.walk(os.getcwd()):
+        if target_file in files:
+            found_path = os.path.join(root, target_file)
+            print(f"🎉 파일 찾음! 위치: {found_path}")
+            break  # 찾으면 중단
     
-    # 후보 1: Main 폴더 안에 있는지 확인
-    path1 = os.path.join(current_dir, 'ai_tools.csv')
-    # 후보 2: 상위 폴더(루트)에 있는지 확인
-    path2 = os.path.join(parent_dir, 'ai_tools.csv')
-    
-    target_path = None
-    
-    if os.path.exists(path1):
-        target_path = path1
-    elif os.path.exists(path2):
-        target_path = path2
-    else:
-        # 둘 다 없으면 디버깅 정보를 화면에 띄움 (원인 파악용)
-        st.error("🚨 서버에서 파일을 찾을 수 없습니다!")
-        st.write(f"📂 1. Main 폴더 파일 목록: {os.listdir(current_dir)}")
-        st.write(f"📂 2. 상위 폴더 파일 목록: {os.listdir(parent_dir)}")
+    # 3. 못 찾았다면? -> 상위 폴더도 한번 더 수색 (혹시 모르니)
+    if found_path is None:
+        parent_dir = os.path.dirname(os.getcwd())
+        for root, dirs, files in os.walk(parent_dir):
+            if target_file in files:
+                found_path = os.path.join(root, target_file)
+                break
+
+    # 4. 결과 처리
+    if found_path is None:
+        st.error("🚨 서버 전체를 뒤져봤지만 'ai_tools.csv' 파일을 찾지 못했습니다.")
+        st.warning("⚠️ 혹시 파일명이 'ai_tools.csv.txt'로 되어 있거나, 철자가 다르진 않나요?")
+        # 디버깅용: 현재 폴더에 있는 파일 다 보여주기
+        st.write("📂 현재 폴더 파일 목록:", os.listdir(os.getcwd()))
         return None
-    
-    # 파일 읽기
+        
+    # 5. 파일 읽기 (인코딩 자동 해결)
     try:
-        df = pd.read_csv(target_path, encoding='utf-8')
+        df = pd.read_csv(found_path, encoding='utf-8')
         return df
     except:
         try:
-            df = pd.read_csv(target_path, encoding='cp949', on_bad_lines='skip')
+            df = pd.read_csv(found_path, encoding='cp949', on_bad_lines='skip')
             return df
-        except:
+        except Exception as e:
+            st.error(f"파일은 찾았는데 읽을 수가 없습니다. 에러: {e}")
             return None
 
 # 데이터 불러오기

@@ -157,24 +157,31 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         return False, f"오류 발생: {str(e)}"
 
 # ==========================================
-# 3. 사이드바 (UI)
+# 3. 사이드바 (UI) - Key 추가됨
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
+    # 초기값 설정을 위한 변수 선언
+    if "sb_job" not in st.session_state:
+        st.session_state.sb_job = "직접 입력"
+    if "sb_situation" not in st.session_state:
+        st.session_state.sb_situation = "직접 입력"
+
     selected_job = "직접 입력"
     selected_situation = "직접 입력"
     
     if df_tools is not None:
-        # 데이터 연동 확인 표시
         st.success(f"✅ DB 연동됨 ({len(df_tools)}개 도구)")
         
         job_list = sorted(df_tools['직무'].unique().tolist())
-        selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list)
+        # [수정] key='sb_job' 추가
+        selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list, key="sb_job")
         
         if selected_job != "직접 입력":
             situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].unique().tolist())
-            selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list)
+            # [수정] key='sb_situation' 추가
+            selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list, key="sb_situation")
     else:
         st.error("CSV 파일을 찾지 못했습니다.")
     
@@ -289,19 +296,24 @@ for i, message in enumerate(st.session_state.messages):
                         st.warning("처리할 질문이 없습니다.")
 
 # ==========================================
-# (수정됨) 빠른 질문 버튼
+# 빠른 질문 버튼 (누르면 사이드바 초기화 기능 추가)
 # ==========================================
+# 사이드바 선택값이 있을 때만 버튼 표시
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
     
     if st.button(btn_label, type="primary"):
-        # 1. 자동 질문 텍스트 생성
+        # 1. 질문 생성
         auto_prompt = f"나는 '{selected_job}' 직무를 맡고 있어. 현재 '{selected_situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
         
-        # 2. [핵심 변경] 기존 대화를 모두 비우고, 새 질문으로 '덮어쓰기' (초기화 효과)
+        # 2. 대화 기록을 '새 질문' 하나로 덮어쓰기 (화면 청소)
         st.session_state.messages = [{"role": "user", "content": auto_prompt}]
         
-        # 3. 화면 갱신 (새로고침)
+        # 3. [핵심] 사이드바 선택값을 '직접 입력'으로 강제 초기화 -> 버튼이 사라짐!
+        st.session_state["sb_job"] = "직접 입력"
+        st.session_state["sb_situation"] = "직접 입력"
+        
+        # 4. 화면 새로고침
         st.rerun()
 
 # 직접 질문 입력

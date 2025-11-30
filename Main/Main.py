@@ -195,7 +195,7 @@ sys_instruction = f"""
 """
 
 # Gemini 1.5 Pro 사용 (2.5는 아직 비공개 모델일 수 있어 1.5로 설정)
-model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=sys_instruction)
+model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
 # 5. 메인 채팅 인터페이스

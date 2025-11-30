@@ -50,7 +50,8 @@ df_tools = load_data()
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
+        # 데이터 추출용: gemini-1.5-flash (빠름)
+        extractor_model = genai.GenerativeModel('gemini-2.5-flash')
         
         extraction_prompt = f"""
         너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON 리스트로 줘.
@@ -140,6 +141,7 @@ def extract_and_update_csv(action_type, user_text, ai_text):
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
+    # Session State 초기화
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -171,7 +173,7 @@ with st.sidebar:
     st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
 # ==========================================
-# 4. AI 모델 설정 (하이브리드 추천)
+# 4. AI 모델 설정 (프롬프트 전략 수정: 하이브리드 추천)
 # ==========================================
 csv_context = ""
 if df_tools is not None:
@@ -185,10 +187,10 @@ sys_instruction = f"""
 너는 트렌디하고 스마트한 'AI 도구 큐레이터'야.
 사용자의 직무와 상황을 듣고 가장 '적합한' 도구를 추천해줘.
 
-### 🎯 핵심 추천 전략:
-1. **하이브리드 추천:** [검증된 도구 목록]을 참고하되, 목록에 없더라도 네가 알고 있는 최신/고성능 도구가 있다면 적극적으로 추천해줘.
-2. **비율:** 가능하면 **(DB에 있는 도구) + (새로운 도구)**를 섞어서 제안해줘.
-3. **판단 기준:** 무조건 **'사용자 상황 해결'**이 1순위야.
+### 🎯 핵심 추천 전략 (매우 중요):
+1. **하이브리드 추천:** [검증된 도구 목록]에 있는 도구도 좋지만, **목록에 없더라도 네가 알고 있는 최신/고성능 도구가 있다면 적극적으로 추천해줘.**
+2. **비율:** 가능하면 **(DB에 있는 도구) + (새로운 도구)**를 섞어서 제안해줘. 그래야 사용자가 새로운 도구를 발견하고 데이터베이스를 업데이트할 수 있어.
+3. **판단 기준:** DB에 있더라도 상황에 맞지 않으면 추천하지 마. 무조건 **'사용자 상황 해결'**이 1순위야.
 
 ### 📝 답변 작성 포맷:
 1. **공감 및 분석:** 상황에 대한 짧은 공감
@@ -199,11 +201,12 @@ sys_instruction = f"""
    - 🔗 **링크:** (URL)
    - ✨ **꿀팁:** (실무 활용 팁)
 
-3. **마무리:** "이 도구가 마음에 드시면 👍를 눌러주세요! 다음에 기억해 둘게요."
+3. **마무리:** (DB에 없는 도구를 추천했다면) "이 도구가 마음에 드시면 👍를 눌러주세요! 다음에 기억해 둘게요." 같은 멘트 추가
 
 {csv_context}
 """
 
+# 모델 설정 유지
 model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
@@ -271,12 +274,10 @@ for i, message in enumerate(st.session_state.messages):
                     else:
                         st.warning("처리할 질문이 없습니다.")
 
-# [콜백 함수 - 수정됨] 사이드바 초기화만 하고 대화는 유지!
+# [콜백 함수] 사이드바 초기화 및 대화 리셋
 def handle_quick_recommendation(job, situation):
     auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
-    # [변경] 기존 대화를 덮어쓰지 않고 추가(append)합니다.
-    st.session_state.messages.append({"role": "user", "content": auto_prompt})
-    # 사이드바는 초기화해서 버튼 숨기기
+    st.session_state.messages = [{"role": "user", "content": auto_prompt}] # 새 대화로 덮어쓰기
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
@@ -287,16 +288,16 @@ def reset_conversation():
     st.session_state["sb_situation"] = "직접 입력"
 
 # ------------------------------------------------------------------
-# 버튼 영역
+# 버튼 영역 (새로운 대화 시작 버튼 + 빠른 추천 버튼)
 # ------------------------------------------------------------------
 col1, col2 = st.columns([8, 2])
 
 with col2:
-    # 수동 초기화 버튼
+    # [새 기능] 언제든 화면을 비울 수 있는 초기화 버튼
     st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
 
 with col1:
-    # 빠른 질문 버튼
+    # 빠른 질문 버튼 (조건 충족 시에만 표시)
     if selected_job != "직접 입력" and selected_situation != "직접 입력":
         btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
         st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
@@ -305,6 +306,9 @@ with col1:
 # 직접 질문 입력
 # ------------------------------------------------------------------
 if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+    # [선택 사항] 만약 '직접 질문할 때도 무조건 초기화'하고 싶다면 아래 주석을 푸세요.
+    # st.session_state.messages = [] 
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
@@ -319,11 +323,11 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 full_history = [m for m in st.session_state.messages if m["role"] != "system"]
                 past_history = full_history[:-1]
                 
-                # 안전장치
+                # 안전장치: 대화 꼬임 방지
                 valid_history = []
                 if past_history:
                     if past_history[-1]["role"] == "user":
-                        valid_history = [] 
+                        valid_history = [] # 에러 방지용 리셋
                     else:
                         valid_history = [{"role": m["role"], "parts": [m["content"]]} for m in past_history]
 
@@ -338,4 +342,3 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 message_placeholder.error(f"오류가 발생했습니다. 다시 시도해 주세요. (Error: {e})")
                 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
                      st.session_state.messages.pop()
-                st.rerun()

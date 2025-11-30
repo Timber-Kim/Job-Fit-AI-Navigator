@@ -14,7 +14,6 @@ st.set_page_config(page_title="Job-Fit AI 도구 추천",
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
-    # 로컬 테스트용 키 (실제 배포시에는 secrets.toml 사용 권장)
     GOOGLE_API_KEY = "여기에_API_키를_입력하세요" 
 
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -51,7 +50,7 @@ df_tools = load_data()
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        # [중요] 데이터 추출용 모델은 'flash' 사용 (빠름)
+        # 데이터 추출용: gemini-1.5-flash (빠름)
         extractor_model = genai.GenerativeModel('gemini-2.5-pro')
         
         extraction_prompt = f"""
@@ -142,7 +141,7 @@ def extract_and_update_csv(action_type, user_text, ai_text):
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
-    # [중요] 초기화 오류 방지를 위한 Session State 사전 설정
+    # Session State 초기화
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -171,9 +170,7 @@ with st.sidebar:
         default=[]
     )
     
-    if st.button("🗑️ 대화 내용 초기화"):
-        st.session_state.messages = []
-        st.rerun()
+    st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
 # ==========================================
 # 4. AI 모델 설정
@@ -208,7 +205,7 @@ sys_instruction = f"""
 {csv_context}
 """
 
-# [중요] 메인 챗봇 모델은 'gemini-1.5-pro' 사용
+# 메인 챗봇: gemini-1.5-pro
 model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
@@ -276,50 +273,63 @@ for i, message in enumerate(st.session_state.messages):
                     else:
                         st.warning("처리할 질문이 없습니다.")
 
-# [콜백 함수] 빠른 추천 버튼 클릭 시 실행
+# [콜백 함수] 사이드바 초기화 및 대화 리셋
 def handle_quick_recommendation(job, situation):
     auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
-    # 새 질문으로 덮어씌워서 대화 초기화
-    st.session_state.messages = [{"role": "user", "content": auto_prompt}]
-    # 사이드바 초기화
+    st.session_state.messages = [{"role": "user", "content": auto_prompt}] # 새 대화로 덮어쓰기
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
-# 빠른 질문 버튼
-if selected_job != "직접 입력" and selected_situation != "직접 입력":
-    btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
-    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation))
+# [콜백 함수] 완전히 새로운 대화 시작 (화면 비우기)
+def reset_conversation():
+    st.session_state.messages = []
+    st.session_state["sb_job"] = "직접 입력"
+    st.session_state["sb_situation"] = "직접 입력"
 
+# ------------------------------------------------------------------
+# 버튼 영역 (새로운 대화 시작 버튼 + 빠른 추천 버튼)
+# ------------------------------------------------------------------
+col1, col2 = st.columns([8, 2])
+
+with col2:
+    # [새 기능] 언제든 화면을 비울 수 있는 초기화 버튼
+    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
+
+with col1:
+    # 빠른 질문 버튼 (조건 충족 시에만 표시)
+    if selected_job != "직접 입력" and selected_situation != "직접 입력":
+        btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
+        st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
+
+# ------------------------------------------------------------------
 # 직접 질문 입력
+# ------------------------------------------------------------------
 if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+    # [선택 사항] 만약 '직접 질문할 때도 무조건 초기화'하고 싶다면 아래 주석을 푸세요.
+    st.session_state.messages = [] 
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
-# [핵심] AI 답변 생성 로직 (안전장치 추가됨)
+# ------------------------------------------------------------------
+# AI 답변 생성 로직
+# ------------------------------------------------------------------
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         with st.spinner("AI가 생각 중입니다..."):
             try:
-                # 1. 시스템 메시지 제외하고 대화 가져오기
                 full_history = [m for m in st.session_state.messages if m["role"] != "system"]
-                
-                # 2. [안전장치] AI에게 보낼 '이전 대화(History)' 만들기
-                # 현재 질문(마지막)은 제외해야 함 (history는 과거 기록이므로)
                 past_history = full_history[:-1]
                 
-                # 3. [안전장치] History가 꼬였는지 확인 (User-User 연속 등)
-                # 만약 과거 기록의 마지막이 'user'라면, AI 답변이 누락된 상태임.
-                # 이 경우 과거 기록을 비워버리는 게 가장 안전함 (400 에러 방지)
+                # 안전장치: 대화 꼬임 방지
                 valid_history = []
                 if past_history:
                     if past_history[-1]["role"] == "user":
-                        # 에러 방지를 위해 과거 기록 무시 (Context Reset 효과)
-                        valid_history = []
+                        valid_history = [] # 에러 방지용 리셋
                     else:
                         valid_history = [{"role": m["role"], "parts": [m["content"]]} for m in past_history]
 
-                # 4. AI 호출
                 chat = model.start_chat(history=valid_history)
                 response = chat.send_message(st.session_state.messages[-1]["content"])
                 
@@ -329,6 +339,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 
             except Exception as e:
                 message_placeholder.error(f"오류가 발생했습니다. 다시 시도해 주세요. (Error: {e})")
-                # 에러가 나면 해당 사용자 질문도 제거해서 다음 번 에러 방지
                 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
                      st.session_state.messages.pop()
+                st.rerun() # 버튼 생성을 위해 새로고침

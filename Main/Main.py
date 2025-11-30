@@ -55,7 +55,7 @@ df_tools = load_data()
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        extractor_model = genai.GenerativeModel('gemini-1.5-flash')
+        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
         
         # [변경점 1] 프롬프트 수정: "배열(List) 형태로 여러 개를 찾아라"
         extraction_prompt = f"""

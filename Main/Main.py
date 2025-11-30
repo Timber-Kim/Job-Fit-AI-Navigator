@@ -247,7 +247,7 @@ welcome_msg = """
    * "회의록 정리가 너무 귀찮은데 도와줄 AI 추천해 줘!"
 
 마음에 드는 추천에는 **따봉(👍)**을 눌러주시면 제가 꼭 기억해 둘게요!
-(도움이 되셨다면 [GitHub](https://github.com/Timber-Fit/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
+(도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
 """
 st.markdown(welcome_msg)
 

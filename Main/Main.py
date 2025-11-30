@@ -288,12 +288,20 @@ for i, message in enumerate(st.session_state.messages):
                     else:
                         st.warning("처리할 질문이 없습니다.")
 
-# 빠른 질문 버튼
+# ==========================================
+# (수정됨) 빠른 질문 버튼
+# ==========================================
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
+    
     if st.button(btn_label, type="primary"):
+        # 1. 자동 질문 텍스트 생성
         auto_prompt = f"나는 '{selected_job}' 직무를 맡고 있어. 현재 '{selected_situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
-        st.session_state.messages.append({"role": "user", "content": auto_prompt})
+        
+        # 2. [핵심 변경] 기존 대화를 모두 비우고, 새 질문으로 '덮어쓰기' (초기화 효과)
+        st.session_state.messages = [{"role": "user", "content": auto_prompt}]
+        
+        # 3. 화면 갱신 (새로고침)
         st.rerun()
 
 # 직접 질문 입력

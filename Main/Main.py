@@ -231,7 +231,7 @@ def quick_ask(job, sit, out):
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     st.button(f"🔍 '{selected_job}' - '{selected_situation}' 추천받기", type="primary", on_click=quick_ask, args=(selected_job, selected_situation, output_format), use_container_width=True)
 
-if prompt := st.chat_input("직접 질문하기..."):
+if prompt := st.chat_input("직접 질문하기(예시. 나는 사실 치킨집 사장인데 개발자가 되고싶어 프론트엔드 개발자가 되고싶은데 판교어를 배우고 싶어 판교어를 가르쳐주는 AI 없을까?))"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 

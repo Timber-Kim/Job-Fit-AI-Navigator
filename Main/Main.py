@@ -3,6 +3,7 @@ import google.generativeai as genai
 import pandas as pd
 import os
 import json
+import time  # [추가] 시간을 지연시키기 위해 필요합니다!
 
 # ==========================================
 # 1. 기본 설정 및 데이터 로드
@@ -91,9 +92,11 @@ def update_data_single_tool(action_type, tool_data):
     if not target_tool: return False, "도구명이 없습니다."
 
     try:
-        # CASE 1: 👍 좋아요 (저장 및 비추천 차감)
+        msg = ""
+        success = True
+
+        # CASE 1: 👍 좋아요
         if action_type == 'like':
-            # 이미 존재하는 경우 -> 비추천 수 차감 (치유)
             if target_tool in df['추천도구'].values:
                 idx = df[df['추천도구'] == target_tool].index
                 current_dislike = st.session_state.master_df.loc[idx, '비추천수'].values[0]
@@ -102,22 +105,17 @@ def update_data_single_tool(action_type, tool_data):
                     st.session_state.master_df.loc[idx, '비추천수'] -= 1
                     msg = f"✅ '{target_tool}' 비추천 1회 차감! (현재 {st.session_state.master_df.loc[idx, '비추천수'].values[0]})"
                 else:
-                    msg = f"✅ '{target_tool}'은(는) 이미 안전하게 저장되어 있습니다."
-            
-            # 없는 경우 -> 신규 저장
+                    msg = f"✨ '{target_tool}'은(는) 이미 안전하게 저장되어 있습니다."
             else:
                 tool_data['비추천수'] = 0
                 new_row = pd.DataFrame([tool_data])
                 st.session_state.master_df = pd.concat([df, new_row], ignore_index=True)
-                msg = f"✅ '{target_tool}' 새로 저장 완료!"
+                msg = f"🎉 '{target_tool}' 데이터베이스에 새로 저장 완료!"
 
         # CASE 2: 👎 싫어요
         elif action_type == 'dislike':
-            # DB에 없는 경우 -> 무반응 (SILENT)
             if target_tool not in df['추천도구'].values:
-                return False, "SILENT" 
-            
-            # DB에 있는 경우 -> 비추천 증가
+                return False, f"❓ '{target_tool}'은(는) 아직 저장되지 않은 도구입니다."
             else:
                 idx = df[df['추천도구'] == target_tool].index
                 st.session_state.master_df.loc[idx, '비추천수'] += 1
@@ -125,9 +123,9 @@ def update_data_single_tool(action_type, tool_data):
                 
                 if current >= 3:
                     st.session_state.master_df = st.session_state.master_df.drop(idx).reset_index(drop=True)
-                    msg = f"🗑️ '{target_tool}' 삭제됨 (비추 3회 누적)"
+                    msg = f"🗑️ '{target_tool}' 삭제됨 (비추천 3회 누적)"
                 else:
-                    msg = f"📉 '{target_tool}' 비추천 ({current}/3)"
+                    msg = f"📉 '{target_tool}' 비추천 ({current}/3회)"
 
         # 파일 저장 시도
         try:
@@ -135,7 +133,7 @@ def update_data_single_tool(action_type, tool_data):
         except:
             pass 
 
-        return True, msg
+        return success, msg
                 
     except Exception as e:
         return False, f"오류: {str(e)}"
@@ -155,8 +153,9 @@ def reset_conversation():
 # 3. 사이드바 (UI)
 # ==========================================
 with st.sidebar:
+
     st.title("🎛️ 메뉴")
-    
+
     st.divider()
 
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
@@ -178,7 +177,7 @@ with st.sidebar:
     else:
         st.warning("데이터가 비어있습니다.")
     
-    
+    st.divider()
     
     output_format = st.multiselect(
         "필요한 결과물 양식 (다중 선택 가능)",
@@ -186,7 +185,6 @@ with st.sidebar:
         default=[],
         key="sb_output_format"
     )
-
     st.divider()
 
     st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
@@ -265,7 +263,7 @@ for i, message in enumerate(st.session_state.messages):
             tools_key = f"tools_{i}"
             
             if tools_key not in st.session_state:
-                if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
+                if st.button("🛠️ 이 답변의 도구 추천/비추천 관리하기", key=f"analyze_{i}"):
                     with st.spinner("답변에서 도구 정보를 추출하는 중..."):
                         user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
                         ai_text = message["content"]
@@ -285,26 +283,30 @@ for i, message in enumerate(st.session_state.messages):
                     c1, c2, c3 = st.columns([3, 1, 1])
                     with c1: st.markdown(f"**🔧 {t_name}**")
                     with c2:
-                        if st.button("👍저장", key=f"save_{i}_{t_name}"):
+                        if st.button("👍추천", key=f"save_{i}_{t_name}"):
                             success, msg = update_data_single_tool('like', tool)
                             if success: 
                                 st.toast(msg, icon="✅")
+                                time.sleep(2) # [추가] 2초 대기하여 메시지를 읽을 시간을 줌
                                 st.rerun()
-                            else: st.toast(msg, icon="⚠️")
+                            else: 
+                                st.toast(msg, icon="⚠️")
+                                time.sleep(2) # [추가] 
+                                st.rerun() # 실패 메시지도 보고 넘어가도록
                     with c3:
                         if st.button("👎비추", key=f"del_{i}_{t_name}"):
                             success, msg = update_data_single_tool('dislike', tool)
                             if success: 
                                 st.toast(msg, icon="📉")
+                                time.sleep(2) # [추가]
                                 st.rerun()
-                            # [핵심] 실패(DB에 없음) 시 조용히 넘어가기
                             else: 
-                                if msg == "SILENT":
-                                    pass # 아무 반응 안 함
-                                else:
+                                if msg != "SILENT":
                                     st.toast(msg, icon="⚠️")
+                                    time.sleep(2) # [추가]
+                                    st.rerun()
 
-# [콜백 함수] 결과물 양식 반영 질문 생성
+# [콜백 함수]
 def handle_quick_recommendation(job, situation, outputs):
     tools_str = ", ".join(outputs) if outputs else "특별히 지정하지 않음"
     auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하고, 필요한 결과물은 '{tools_str}' 야. 적합한 AI 도구를 추천해줘."
@@ -318,7 +320,7 @@ if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
     st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation, output_format), use_container_width=True)
 
-if prompt := st.chat_input("직접 질문하기(예시 : 치킨집사장인데 주식 트레이더로 업무를 전환 하려고해 공부를 위한 AI를 추천해줄래?)"):
+if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 

@@ -51,43 +51,54 @@ def load_data():
 df_tools = load_data()
 
 # ==========================================
-# 2. (핵심 기능) AI 정보 추출 및 CSV 업데이트 로직
+# 2. (핵심 기능) AI 정보 추출 및 CSV 업데이트 로직 (다중 처리 버전)
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        # [수정 2] 모델명을 2.5(존재X) -> 1.5-flash(빠름)로 변경
-        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
+        extractor_model = genai.GenerativeModel('gemini-1.5-flash')
         
+        # [변경점 1] 프롬프트 수정: "배열(List) 형태로 여러 개를 찾아라"
         extraction_prompt = f"""
-        너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON으로 줘.
+        너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON 리스트로 줘.
         
         [대화]
         Q: {user_text}
         A: {ai_text}
         
         [요청사항]
-        1. AI 답변에서 추천한 핵심 '추천도구'(이름)을 정확히 찾아줘.
-        2. action이 'like'라면, 질문과 답변을 바탕으로 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크 정보도 추출해.
+        1. AI 답변에서 추천한 **모든** 핵심 '추천도구'(이름)을 찾아줘. (여러 개일 수 있음)
+        2. action이 'like'라면, 각 도구별로 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크 정보도 추출해.
         
-        출력 포맷(JSON):
-        {{
-            "추천도구": "도구이름",
-            "직무": "...",
-            "상황": "...",
-            "결과물": "...",
-            "특징_및_팁": "...",
-            "유료여부": "...",
-            "링크": "..."
-        }}
-        오직 JSON만 출력해.
+        출력 포맷(JSON List):
+        [
+            {{
+                "추천도구": "도구A",
+                "직무": "...",
+                "상황": "...",
+                "결과물": "...",
+                "특징_및_팁": "...",
+                "유료여부": "...",
+                "링크": "..."
+            }},
+            {{
+                "추천도구": "도구B",
+                ...
+            }}
+        ]
+        오직 JSON List만 출력해.
         """
         
         result = extractor_model.generate_content(extraction_prompt)
         cleaned_json = result.text.replace("```json", "").replace("```", "").strip()
-        data_dict = json.loads(cleaned_json)
-        target_tool = data_dict.get('추천도구')
+        
+        # JSON 파싱 (이제 리스트로 받습니다)
+        tools_data_list = json.loads(cleaned_json)
+        
+        # 만약 AI가 실수로 리스트가 아니라 하나만(Dict) 줬을 경우를 대비
+        if isinstance(tools_data_list, dict):
+            tools_data_list = [tools_data_list]
 
-        # 파일 다시 읽기 (최신 상태)
+        # 파일 읽기
         if os.path.exists(CSV_FILE_PATH):
             df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
         else:
@@ -96,35 +107,51 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
 
-        # CASE 1: 👍 좋아요
-        if action_type == 'like':
-            if target_tool in df['추천도구'].values:
-                return False, f"'{target_tool}'은(는) 이미 데이터베이스에 있습니다."
-            
-            data_dict['비추천수'] = 0
-            new_row = pd.DataFrame([data_dict])
-            df_updated = pd.concat([df, new_row], ignore_index=True)
-            df_updated.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-            return True, f"'{target_tool}' 정보가 학습되었습니다!"
+        # 결과 메시지를 모을 리스트
+        result_messages = []
+        has_change = False # 변경사항이 있는지 체크
 
-        # CASE 2: 👎 싫어요
-        elif action_type == 'dislike':
-            if target_tool not in df['추천도구'].values:
-                return False, f"'{target_tool}'은(는) 데이터베이스에 없는 도구라 삭제할 수 없습니다."
-            
-            idx = df[df['추천도구'] == target_tool].index
-            df.loc[idx, '비추천수'] += 1
-            current_dislikes = df.loc[idx, '비추천수'].values[0]
-            
-            msg = ""
-            if current_dislikes >= 3:
-                df = df.drop(idx)
-                msg = f"'{target_tool}'이(가) 비추천 3회 누적으로 삭제되었습니다. 🗑️"
-            else:
-                msg = f"'{target_tool}' 비추천 처리됨. (현재 {current_dislikes}/3회) 👎"
-            
+        # [변경점 2] 추출된 도구들을 하나씩 반복하며 처리
+        for data_dict in tools_data_list:
+            target_tool = data_dict.get('추천도구')
+            if not target_tool: continue # 이름 없으면 패스
+
+            # CASE 1: 👍 좋아요
+            if action_type == 'like':
+                if target_tool in df['추천도구'].values:
+                    # 이미 있으면 스킵
+                    result_messages.append(f"⚠️ '{target_tool}'(중복)")
+                else:
+                    # 없으면 추가
+                    data_dict['비추천수'] = 0
+                    new_row = pd.DataFrame([data_dict])
+                    df = pd.concat([df, new_row], ignore_index=True)
+                    result_messages.append(f"✅ '{target_tool}'")
+                    has_change = True
+
+            # CASE 2: 👎 싫어요
+            elif action_type == 'dislike':
+                if target_tool not in df['추천도구'].values:
+                    result_messages.append(f"❓ '{target_tool}'(없음)")
+                else:
+                    idx = df[df['추천도구'] == target_tool].index
+                    df.loc[idx, '비추천수'] += 1
+                    current_dislikes = df.loc[idx, '비추천수'].values[0]
+                    
+                    if current_dislikes >= 3:
+                        df = df.drop(idx)
+                        result_messages.append(f"🗑️ '{target_tool}' 삭제")
+                    else:
+                        result_messages.append(f"📉 '{target_tool}'({current_dislikes}/3)")
+                    has_change = True
+
+        # 저장 및 결과 반환
+        if has_change:
             df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-            return True, msg
+            
+        # 결과 메시지 조합 (예: "✅ ChatGPT, ⚠️ Notion(중복) 처리됨")
+        final_msg = ", ".join(result_messages)
+        return True, final_msg
 
     except Exception as e:
         return False, f"오류 발생: {str(e)}"

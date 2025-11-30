@@ -164,7 +164,7 @@ sys_instruction = f"""
 
 # Gemini 2.5 Pro 사용
 model = genai.GenerativeModel(
-    'gemini-2.5-pro',
+    'gemini-2.5-flash',
     system_instruction=sys_instruction
 )
 

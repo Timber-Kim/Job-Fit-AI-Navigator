@@ -4,6 +4,28 @@ import pandas as pd
 import os
 
 # ==========================================
+# (추가 기능) CSV에 데이터 추가하는 함수
+# ==========================================
+def save_to_csv(new_data):
+    file_path = 'ai_tools.csv'
+    try:
+        # 기존 데이터 불러오기
+        df = pd.read_csv(file_path, encoding='utf-8-sig', on_bad_lines='skip')
+        
+        # 새로운 데이터프레임 생성
+        new_row = pd.DataFrame([new_data])
+        
+        # 합치기 (concat 사용)
+        df_updated = pd.concat([df, new_row], ignore_index=True)
+        
+        # 다시 저장 (utf-8-sig로 저장해야 엑셀에서 안 깨짐)
+        df_updated.to_csv(file_path, index=False, encoding='utf-8-sig')
+        return True
+    except Exception as e:
+        st.error(f"저장 중 오류 발생: {e}")
+        return False
+
+# ==========================================
 # 1. 기본 설정
 # ==========================================
 # 페이지 기본 설정 (탭 이름 등)
@@ -187,43 +209,85 @@ if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 P
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
-# -------------------------------------------------------
-# 4. AI 답변 생성 (여기가 핵심! 로직 분리)
-# -------------------------------------------------------
-# 마지막 메시지가 'user'(사용자)라면 -> AI가 대답할 차례!
+# ==========================================
+# 4. AI 답변 생성 및 피드백 저장 로직
+# ==========================================
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
         try:
-            # 로딩 표시 (Spinner)
-            with st.spinner("AI가 데이터를 분석하여 도구를 찾는 중입니다..."):
-                
-                # 대화 기록(Context) 구성 (시스템 메시지 제외)
+            with st.spinner("AI가 생각 중입니다..."):
+                # 대화 맥락 구성
                 chat_history = [
                     {"role": m["role"], "parts": [m["content"]]} 
                     for m in st.session_state.messages 
                     if m["role"] != "system"
                 ]
                 
-                # AI에게 질문 (마지막 사용자 메시지 내용으로)
-                last_user_message = st.session_state.messages[-1]["content"]
+                # AI 답변 요청
+                chat = model.start_chat(history=chat_history[:-1])
+                response = chat.send_message(st.session_state.messages[-1]["content"])
                 
-                chat = model.start_chat(history=chat_history[:-1]) # 마지막 메시지는 제외하고 history 설정
-                response = chat.send_message(last_user_message)
-                
-                # 답변 출력
+                # 답변 출력 및 저장
                 message_placeholder.markdown(response.text)
-                
-                # 답변 저장
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-                
-                # 만족도 피드백 UI
-                col1, col2 = st.columns([1, 8])
-                with col1:
-                    st.button("👍", key=f"like_{len(st.session_state.messages)}")
-
+        
         except Exception as e:
-            message_placeholder.error("죄송합니다. 답변 생성 중 오류가 발생했습니다.")
-            st.error(f"상세 에러: {e}")
+            message_placeholder.error("오류가 발생했습니다.")
+            st.error(e)
+
+# -------------------------------------------------------
+# [업그레이드] 답변별 '데이터 추가' 기능 (대화 루프 밖에서 처리)
+# -------------------------------------------------------
+# 가장 최근 답변이 AI인 경우에만 추천 저장 버튼 표시
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
+    
+    st.divider()
+    st.caption("이 답변이 마음에 드시나요? 데이터베이스에 추가해보세요!")
+    
+    # Expander로 저장 양식 열기
+    with st.expander("💾 이 추천을 CSV에 저장하기 (Click)"):
+        with st.form("save_tool_form"):
+            st.write("아래 내용을 확인하고 저장 버튼을 눌러주세요.")
+            
+            # 사용자 질문과 AI 답변을 미리 채워넣기 위한 변수
+            last_user_msg = st.session_state.messages[-2]["content"] if len(st.session_state.messages) > 1 else ""
+            last_ai_msg = st.session_state.messages[-1]["content"]
+            
+            # CSV 컬럼에 맞게 입력창 만들기
+            col1, col2 = st.columns(2)
+            with col1:
+                input_job = st.text_input("직무", value="사용자추천")
+                input_situation = st.text_input("상황", value=last_user_msg[:30]+"...") # 질문 내용 일부 자동 입력
+            with col2:
+                input_output = st.text_input("결과물", value="기타")
+                input_price = st.selectbox("유료여부", ["무료", "유료", "부분유료"])
+
+            input_tool = st.text_input("추천 도구 이름", placeholder="예: ChatGPT")
+            input_desc = st.text_area("특징 및 팁", value=last_ai_msg[:100]+"...") # AI 답변 일부 자동 입력
+            input_link = st.text_input("링크 (URL)", value="https://")
+            
+            # 저장 버튼
+            submit_save = st.form_submit_button("✅ CSV에 저장하기")
+            
+            if submit_save:
+                # 저장할 데이터 딕셔너리 생성
+                new_data = {
+                    "직무": input_job,
+                    "상황": input_situation,
+                    "결과물": input_output,
+                    "추천도구": input_tool,
+                    "특징_및_팁": input_desc,
+                    "유료여부": input_price,
+                    "링크": input_link
+                }
+                
+                # 저장 함수 실행
+                if save_to_csv(new_data):
+                    st.success(f"'{input_tool}' 정보가 성공적으로 저장되었습니다! (새로고침 후 반영)")
+                    # 캐시 데이터 비우기 (그래야 바로 반영됨)
+                    st.cache_data.clear()
+                else:
+                    st.error("데이터 저장 중 오류가 발생했습니다.")

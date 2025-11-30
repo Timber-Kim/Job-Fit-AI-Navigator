@@ -150,7 +150,7 @@ def reset_conversation():
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
-    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
+    
     st.divider()
 
     if "sb_job" not in st.session_state:
@@ -181,6 +181,10 @@ with st.sidebar:
         ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
         default=[]
     )
+
+    st.divider()
+
+    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
     
     st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
@@ -254,7 +258,7 @@ for i, message in enumerate(st.session_state.messages):
             tools_key = f"tools_{i}"
             
             if tools_key not in st.session_state:
-                if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
+                if st.button("🛠️ 이 답변의 도구 추천/비추천 관리하기", key=f"analyze_{i}"):
                     with st.spinner("답변에서 도구 정보를 추출하는 중..."):
                         user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
                         ai_text = message["content"]
@@ -268,7 +272,7 @@ for i, message in enumerate(st.session_state.messages):
                             st.error("추출된 도구가 없습니다.")
             else:
                 tools_list = st.session_state[tools_key]
-                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 관리 버튼을 눌러주세요.")
+                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 추천/비추천 버튼을 눌러주세요.")
                 
                 for tool in tools_list:
                     t_name = tool['추천도구']
@@ -277,7 +281,7 @@ for i, message in enumerate(st.session_state.messages):
                     with c1:
                         st.markdown(f"**🔧 {t_name}**")
                     with c2:
-                        if st.button("👍저장", key=f"save_{i}_{t_name}"):
+                        if st.button("👍추천", key=f"save_{i}_{t_name}"):
                             success, msg = update_data_single_tool('like', tool)
                             if success: 
                                 st.toast(msg, icon="✅")

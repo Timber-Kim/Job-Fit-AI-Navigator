@@ -270,7 +270,7 @@ if selected_job != "직접 입력" and selected_situation != "직접 입력":
         st.rerun()
 
 # 직접 질문 입력
-if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+if prompt := st.chat_input("직접 질문하기 (예: 마케터인데 무료로 쓸 수 있는 이미지 생성 툴 있어?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 

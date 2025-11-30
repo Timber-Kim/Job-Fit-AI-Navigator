@@ -194,7 +194,7 @@ model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instructi
 # 5. 메인 채팅 인터페이스
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
-st.markdown("""
+welcome_msg = """
 👋 **반가워요! 당신의 스마트한 업무 파트너, Job-Fit AI입니다.**
 
 "이럴 땐 어떤 AI를 써야 하지?" 더 이상 혼자 고민하지 마세요.
@@ -208,7 +208,9 @@ st.markdown("""
 
 마음에 드는 추천에는 **따봉(👍)**을 눌러주시면 제가 꼭 기억해 둘게요!
 (도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
-""")
+"""
+
+st.markdown(welcome_msg)
 
 # 대화 기록 초기화
 if "messages" not in st.session_state:

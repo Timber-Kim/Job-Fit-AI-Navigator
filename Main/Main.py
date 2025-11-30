@@ -5,7 +5,7 @@ import google.generativeai as genai
 # 1. 설정 (여기에 API 키를 넣어주세요)
 # ==========================================
 # 실제 배포시에는 API 키를 코드에 직접 노출하면 안 되지만, 연습용이므로 여기에 적습니다.
-GOOGLE_API_KEY = "AIzaSyB4becnPlwrNn9rUGCMV4yzRZ5qqWvcmiw"
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 
 genai.configure(api_key=GOOGLE_API_KEY)
 

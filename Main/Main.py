@@ -22,36 +22,37 @@ genai.configure(api_key=GOOGLE_API_KEY)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE_PATH = os.path.join(current_dir, 'ai_tools.csv')
 
-# 데이터 로드 함수
-@st.cache_data
-def load_data():
-    if not os.path.exists(CSV_FILE_PATH):
-        return None
-
-    try:
-        df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
-    except:
-        try:
-            df = pd.read_csv(CSV_FILE_PATH, encoding='cp949', on_bad_lines='skip')
-        except:
-            return None
-
-    if df is not None:
+# [핵심 변경] 데이터를 로드해서 Session State(메모리)에 보관하는 함수
+def init_data():
+    # 이미 메모리에 데이터가 있다면 다시 로드하지 않음 (유지)
+    if "master_df" not in st.session_state:
+        if os.path.exists(CSV_FILE_PATH):
+            try:
+                df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
+            except:
+                try:
+                    df = pd.read_csv(CSV_FILE_PATH, encoding='cp949', on_bad_lines='skip')
+                except:
+                    df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
+        else:
+            df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
+        
+        # 비추천수 컬럼 보장
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
-            df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
             
-    return df
+        st.session_state.master_df = df
 
-df_tools = load_data()
+# 앱 시작 시 데이터 초기화 실행
+init_data()
+
+# 편의를 위해 변수 할당
+df_tools = st.session_state.master_df
 
 # ==========================================
-# 2. 도구 정보 추출 및 CSV 업데이트 로직
+# 2. 도구 정보 추출 및 데이터 업데이트 로직
 # ==========================================
 def parse_tools_from_text(user_text, ai_text):
-    """
-    AI 답변에서 도구 목록을 추출하여 리스트로 반환 (버튼 생성용)
-    """
     try:
         extractor_model = genai.GenerativeModel('gemini-2.5-flash')
         
@@ -88,19 +89,16 @@ def parse_tools_from_text(user_text, ai_text):
     except:
         return []
 
-def update_csv_single_tool(action_type, tool_data):
+def update_data_single_tool(action_type, tool_data):
+    """
+    [핵심] 파일이 아니라 '메모리(Session State)'를 먼저 수정하고 파일 저장은 시도만 함
+    """
+    df = st.session_state.master_df # 메모리에 있는 데이터 가져오기
+    target_tool = tool_data.get('추천도구')
+    
+    if not target_tool: return False, "도구명이 없습니다."
+
     try:
-        if os.path.exists(CSV_FILE_PATH):
-            df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
-        else:
-            return False, "CSV 파일이 없습니다."
-
-        if '비추천수' not in df.columns:
-            df['비추천수'] = 0
-
-        target_tool = tool_data.get('추천도구')
-        if not target_tool: return False, "도구명이 없습니다."
-
         # CASE 1: 👍 좋아요
         if action_type == 'like':
             if target_tool in df['추천도구'].values:
@@ -108,9 +106,9 @@ def update_csv_single_tool(action_type, tool_data):
             else:
                 tool_data['비추천수'] = 0
                 new_row = pd.DataFrame([tool_data])
-                df = pd.concat([df, new_row], ignore_index=True)
-                df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-                return True, f"✅ '{target_tool}' 저장 완료!"
+                # 메모리 업데이트
+                st.session_state.master_df = pd.concat([df, new_row], ignore_index=True)
+                msg = f"✅ '{target_tool}' 저장 완료!"
 
         # CASE 2: 👎 싫어요
         elif action_type == 'dislike':
@@ -118,18 +116,22 @@ def update_csv_single_tool(action_type, tool_data):
                 return False, f"❓ '{target_tool}'(DB에 없음)"
             else:
                 idx = df[df['추천도구'] == target_tool].index
-                df.loc[idx, '비추천수'] += 1
-                current = df.loc[idx, '비추천수'].values[0]
+                st.session_state.master_df.loc[idx, '비추천수'] += 1
+                current = st.session_state.master_df.loc[idx, '비추천수'].values[0]
                 
-                msg = ""
                 if current >= 3:
-                    df = df.drop(idx)
+                    st.session_state.master_df = st.session_state.master_df.drop(idx).reset_index(drop=True)
                     msg = f"🗑️ '{target_tool}' 삭제됨 (3회 누적)"
                 else:
                     msg = f"📉 '{target_tool}' 비추천 ({current}/3)"
-                
-                df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-                return True, msg
+
+        # [파일 저장 시도] 로컬 환경을 위해 CSV 저장 시도 (실패해도 메모리는 유지됨)
+        try:
+            st.session_state.master_df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
+        except:
+            pass # 서버 권한 문제 등으로 저장 못 해도 패스 (메모리엔 남아있으므로)
+
+        return True, msg
                 
     except Exception as e:
         return False, f"오류: {str(e)}"
@@ -139,7 +141,6 @@ def reset_conversation():
     st.session_state.messages = []
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
-    # 도구 분석 캐시도 삭제
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
     for k in keys_to_del:
         del st.session_state[k]
@@ -149,7 +150,9 @@ def reset_conversation():
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
-    
+    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
+    st.divider()
+
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -158,17 +161,18 @@ with st.sidebar:
     selected_job = "직접 입력"
     selected_situation = "직접 입력"
     
-    if df_tools is not None:
+    # 메모리에 있는 데이터 사용
+    if not df_tools.empty:
         st.success(f"✅ DB 연동됨 ({len(df_tools)}개 도구)")
         
-        job_list = sorted(df_tools['직무'].unique().tolist())
+        job_list = sorted(df_tools['직무'].astype(str).unique().tolist())
         selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list, key="sb_job")
         
         if selected_job != "직접 입력":
-            situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].unique().tolist())
+            situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
             selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list, key="sb_situation")
     else:
-        st.error("CSV 파일을 찾지 못했습니다.")
+        st.warning("데이터가 비어있거나 로드되지 않았습니다.")
     
     st.divider()
     
@@ -177,18 +181,14 @@ with st.sidebar:
         ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
         default=[]
     )
-    st.divider()
-    # [수정] 초기화 버튼을 사이드바 최상단으로 이동
-    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
     
-
     st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
 # ==========================================
-# 4. AI 모델 설정 (하이브리드 추천)
+# 4. AI 모델 설정
 # ==========================================
 csv_context = ""
-if df_tools is not None:
+if not df_tools.empty:
     display_cols = [col for col in df_tools.columns if col != '비추천수']
     csv_context = f"""
     [우리가 보유한 검증된 도구 목록 (DB)]
@@ -250,11 +250,9 @@ for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
         
-        # AI 답변 아래에만 '도구 관리' 버튼 표시
         if message["role"] == "assistant":
             tools_key = f"tools_{i}"
             
-            # [Step 1] 아직 분석 안 된 상태면 '분석 버튼' 보여주기
             if tools_key not in st.session_state:
                 if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
                     with st.spinner("답변에서 도구 정보를 추출하는 중..."):
@@ -268,11 +266,9 @@ for i, message in enumerate(st.session_state.messages):
                             st.rerun()
                         else:
                             st.error("추출된 도구가 없습니다.")
-            
-            # [Step 2] 분석된 도구가 있으면 -> 개별 버튼 뿌리기
             else:
                 tools_list = st.session_state[tools_key]
-                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 개별적으로 저장하거나 비추천할 수 있습니다.")
+                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 관리 버튼을 눌러주세요.")
                 
                 for tool in tools_list:
                     t_name = tool['추천도구']
@@ -282,18 +278,16 @@ for i, message in enumerate(st.session_state.messages):
                         st.markdown(f"**🔧 {t_name}**")
                     with c2:
                         if st.button("👍저장", key=f"save_{i}_{t_name}"):
-                            success, msg = update_csv_single_tool('like', tool)
+                            success, msg = update_data_single_tool('like', tool)
                             if success: 
                                 st.toast(msg, icon="✅")
-                                st.cache_data.clear()
                                 st.rerun()
                             else: st.toast(msg, icon="⚠️")
                     with c3:
                         if st.button("👎비추", key=f"del_{i}_{t_name}"):
-                            success, msg = update_csv_single_tool('dislike', tool)
+                            success, msg = update_data_single_tool('dislike', tool)
                             if success: 
                                 st.toast(msg, icon="📉")
-                                st.cache_data.clear()
                                 st.rerun()
                             else: st.toast(msg, icon="⚠️")
 
@@ -304,7 +298,7 @@ def handle_quick_recommendation(job, situation):
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
-# [수정] 메인 화면에는 '빠른 질문 버튼'만 남김
+# 빠른 추천 버튼
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
     st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)

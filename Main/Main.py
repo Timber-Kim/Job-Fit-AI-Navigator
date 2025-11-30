@@ -207,7 +207,7 @@ sys_instruction = f"""
 """
 
 # 모델 설정 유지
-model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
+model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_instruction)
 
 # ==========================================
 # 5. 메인 채팅 인터페이스

@@ -250,8 +250,7 @@ for i, message in enumerate(st.session_state.messages):
                             success, msg = extract_and_update_csv('like', user_query, ai_answer)
                             if success:
                                 st.toast(msg, icon="🎉")
-                                st.cache_data.clear() # 캐시 비우기
-                                st.rerun() # [핵심 수정] 즉시 화면 새로고침해서 사이드바 업데이트!
+                                st.cache_data.clear()
                             else:
                                 st.error(msg)
                     else:
@@ -266,17 +265,18 @@ for i, message in enumerate(st.session_state.messages):
                             success, msg = extract_and_update_csv('dislike', user_query, ai_answer)
                             if success:
                                 st.toast(msg, icon="📉")
-                                st.cache_data.clear() # 캐시 비우기
-                                st.rerun() # [핵심 수정] 즉시 화면 새로고침
+                                st.cache_data.clear()
                             else:
                                 st.error(msg)
                     else:
                         st.warning("처리할 질문이 없습니다.")
 
-# [콜백 함수] 사이드바 초기화 및 대화 이어가기
+# [콜백 함수 - 수정됨] 사이드바 초기화만 하고 대화는 유지!
 def handle_quick_recommendation(job, situation):
     auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
+    # [변경] 기존 대화를 덮어쓰지 않고 추가(append)합니다.
     st.session_state.messages.append({"role": "user", "content": auto_prompt})
+    # 사이드바는 초기화해서 버튼 숨기기
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
@@ -292,9 +292,11 @@ def reset_conversation():
 col1, col2 = st.columns([8, 2])
 
 with col2:
+    # 수동 초기화 버튼
     st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
 
 with col1:
+    # 빠른 질문 버튼
     if selected_job != "직접 입력" and selected_situation != "직접 입력":
         btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
         st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
@@ -317,6 +319,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 full_history = [m for m in st.session_state.messages if m["role"] != "system"]
                 past_history = full_history[:-1]
                 
+                # 안전장치
                 valid_history = []
                 if past_history:
                     if past_history[-1]["role"] == "user":
@@ -335,4 +338,4 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 message_placeholder.error(f"오류가 발생했습니다. 다시 시도해 주세요. (Error: {e})")
                 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
                      st.session_state.messages.pop()
-                st.rerun() # 버튼 생성을 위해 새로고침
+                st.rerun()

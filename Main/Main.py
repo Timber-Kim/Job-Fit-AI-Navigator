@@ -56,7 +56,7 @@ df_tools = load_data()
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
         # [수정 2] 모델명을 2.5(존재X) -> 1.5-flash(빠름)로 변경
-        extractor_model = genai.GenerativeModel('gemini-1.5-flash')
+        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
         
         extraction_prompt = f"""
         너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON으로 줘.
@@ -188,7 +188,7 @@ sys_instruction = f"""
 """
 
 # [수정 3] 메인 모델도 2.5 -> 1.5-pro로 변경
-model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=sys_instruction)
+model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
 # 5. 메인 채팅 인터페이스

@@ -1,357 +1,257 @@
 import streamlit as st
 import google.generativeai as genai
 import pandas as pd
-import os
 import json
-import time  # [추가] 시간을 지연시키기 위해 필요합니다!
+import time
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 1. 기본 설정 및 데이터 로드
+# 1. 기본 설정 및 구글 시트 연결
 # ==========================================
-st.set_page_config(page_title="Job-Fit AI 도구 추천",
-                   page_icon="🤖",
-                   layout="wide")
+st.set_page_config(page_title="Job-Fit AI 도구 추천", page_icon="🤖", layout="wide")
 
+# API 키 및 시트 설정 가져오기
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    gcp_credentials = dict(st.secrets["gcp_service_account"])
 except:
-    GOOGLE_API_KEY = "여기에_API_키를_입력하세요" 
+    st.error("Secrets 설정이 안 되어 있습니다. Streamlit Cloud Settings -> Secrets를 확인하세요.")
+    st.stop()
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# 절대 경로 설정
-current_dir = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE_PATH = os.path.join(current_dir, 'ai_tools.csv')
+# [중요] 본인의 구글 시트 주소로 변경하세요!
+SHEET_URL = "https://docs.google.com/spreadsheets/d/176EoAIiDYnDiD9hORKABr_juIgRZZss5ApTqdaRCx5E/edit?gid=0#gid=0" 
 
-# 데이터 초기화 함수 (메모리 우선)
+# 구글 시트 연결 (캐싱하여 속도 향상)
+@st.cache_resource
+def connect_to_gsheet():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(gcp_credentials, scope)
+    client = gspread.authorize(creds)
+    return client.open_by_url(SHEET_URL).sheet1
+
+# 데이터 초기화
 def init_data():
     if "master_df" not in st.session_state:
-        if os.path.exists(CSV_FILE_PATH):
-            try:
-                df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
-            except:
-                try:
-                    df = pd.read_csv(CSV_FILE_PATH, encoding='cp949', on_bad_lines='skip')
-                except:
-                    df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
-        else:
-            df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
-        
-        if '비추천수' not in df.columns:
-            df['비추천수'] = 0
+        try:
+            worksheet = connect_to_gsheet()
+            data = worksheet.get_all_records()
+            if data:
+                df = pd.DataFrame(data)
+            else:
+                df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
             
-        st.session_state.master_df = df
+            if '비추천수' not in df.columns: df['비추천수'] = 0
+            # 숫자형 변환
+            df['비추천수'] = pd.to_numeric(df['비추천수'], errors='coerce').fillna(0).astype(int)
+            
+            st.session_state.master_df = df
+        except Exception as e:
+            st.error(f"구글 시트 연결 실패: {e}")
+            st.session_state.master_df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
 
 init_data()
 df_tools = st.session_state.master_df
 
 # ==========================================
-# 2. 도구 정보 추출 및 데이터 업데이트 로직
+# 2. 로직 함수들
 # ==========================================
 def parse_tools_from_text(user_text, ai_text):
     try:
         extractor_model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        extraction_prompt = f"""
-        아래 대화에서 AI가 추천한 **AI 도구 이름**들을 모두 찾아서 JSON 리스트로 줘.
-        
-        [대화]
-        Q: {user_text}
-        A: {ai_text}
-        
-        [요청사항]
-        1. 도구 이름, 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크를 추출해.
-        2. 직무/상황 등은 질문과 답변을 보고 추론해.
-        
-        출력 포맷(JSON List):
-        [
-            {{
-                "추천도구": "도구명",
-                "직무": "...",
-                "상황": "...",
-                "결과물": "...",
-                "특징_및_팁": "...",
-                "유료여부": "...",
-                "링크": "..."
-            }}
-        ]
+        prompt = f"""
+        아래 대화에서 추천된 AI 도구 정보를 JSON 리스트로 추출해.
+        Q: {user_text} / A: {ai_text}
+        형식: [{{"추천도구": "이름", "직무": "...", "상황": "...", "결과물": "...", "특징_및_팁": "...", "유료여부": "...", "링크": "..."}}]
         """
-        result = extractor_model.generate_content(extraction_prompt)
-        cleaned_json = result.text.replace("```json", "").replace("```", "").strip()
-        tools_list = json.loads(cleaned_json)
-        if isinstance(tools_list, dict):
-            tools_list = [tools_list]
-        return tools_list
+        res = extractor_model.generate_content(prompt)
+        text = res.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text) if text.startswith("[") else [json.loads(text)]
     except:
         return []
 
 def update_data_single_tool(action_type, tool_data):
-    target_tool = tool_data.get('추천도구')
-    if not target_tool: return False, "도구명이 없습니다."
+    df = st.session_state.master_df
+    target = tool_data.get('추천도구')
+    if not target: return False, "오류: 도구명 없음"
 
     try:
-        # [핵심 변경 1] 저장 버튼 누르는 순간, 최신 CSV 파일을 다시 읽어옵니다. (동시성 해결)
-        if os.path.exists(CSV_FILE_PATH):
-            try:
-                # 최신 파일 로드
-                df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
-                if '비추천수' not in df.columns:
-                    df['비추천수'] = 0
-            except:
-                # 파일 깨졌으면 메모리 데이터라도 사용
-                df = st.session_state.master_df.copy()
-        else:
-            df = st.session_state.master_df.copy()
-
-        msg = ""
-        success = True
+        msg, success, updated = "", True, False
         
-        # [핵심 변경 2] '메모리'가 아니라 방금 읽어온 'df'를 수정합니다.
-        
-        # CASE 1: 👍 좋아요
+        # [LIKE]
         if action_type == 'like':
-            if target_tool in df['추천도구'].values:
-                idx = df[df['추천도구'] == target_tool].index
-                current_dislike = df.loc[idx, '비추천수'].values[0]
-                
-                if current_dislike > 0:
-                    df.loc[idx, '비추천수'] -= 1
-                    msg = f"✅ '{target_tool}' 비추천 1회 차감! (현재 {df.loc[idx, '비추천수'].values[0]})"
+            if target in df['추천도구'].values:
+                idx = df[df['추천도구'] == target].index[0]
+                val = int(df.loc[idx, '비추천수'])
+                if val > 0:
+                    df.loc[idx, '비추천수'] = val - 1
+                    msg, updated = f"✅ '{target}' 비추천 차감 완료!", True
                 else:
-                    msg = f"✨ '{target_tool}'은(는) 이미 안전하게 저장되어 있습니다."
+                    msg = f"✨ '{target}'은(는) 이미 저장됨."
             else:
                 tool_data['비추천수'] = 0
-                new_row = pd.DataFrame([tool_data])
-                df = pd.concat([df, new_row], ignore_index=True)
-                msg = f"🎉 '{target_tool}' 데이터베이스에 새로 저장 완료!"
-
-        # CASE 2: 👎 싫어요
+                df = pd.concat([df, pd.DataFrame([tool_data])], ignore_index=True)
+                msg, updated = f"🎉 '{target}' 시트에 저장 완료!", True
+        
+        # [DISLIKE]
         elif action_type == 'dislike':
-            if target_tool not in df['추천도구'].values:
-                return False, f"❓ '{target_tool}'은(는) 아직 저장되지 않은 도구입니다."
+            if target not in df['추천도구'].values:
+                return False, f"❓ '{target}'(미저장 도구)"
             else:
-                idx = df[df['추천도구'] == target_tool].index
-                df.loc[idx, '비추천수'] += 1
-                current = df.loc[idx, '비추천수'].values[0]
+                idx = df[df['추천도구'] == target].index[0]
+                val = int(df.loc[idx, '비추천수']) + 1
+                df.loc[idx, '비추천수'] = val
                 
-                if current >= 3:
+                if val >= 3:
                     df = df.drop(idx).reset_index(drop=True)
-                    msg = f"🗑️ '{target_tool}' 삭제됨 (비추천 3회 누적)"
+                    msg = f"🗑️ '{target}' 삭제됨 (비추 3회)"
                 else:
-                    msg = f"📉 '{target_tool}' 비추천 ({current}/3회)"
+                    msg = f"📉 '{target}' 비추천 ({val}/3)"
+                updated = True
 
-        # [핵심 변경 3] 파일 저장 후 -> 내 메모리(Session State)도 최신화
-        df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-        st.session_state.master_df = df # 내 화면도 최신 데이터로 동기화
+        # 구글 시트 동기화
+        if updated:
+            st.session_state.master_df = df
+            try:
+                ws = connect_to_gsheet()
+                ws.clear() # 기존 내용 지우고
+                ws.update([df.columns.values.tolist()] + df.values.tolist()) # 전체 덮어쓰기
+            except Exception as e:
+                return False, f"시트 저장 실패: {e}"
 
         return success, msg
-                
     except Exception as e:
-        return False, f"오류: {str(e)}"
+        return False, str(e)
 
-# [콜백 함수] 대화 및 상태 초기화
 def reset_conversation():
     st.session_state.messages = []
-    st.session_state["sb_job"] = "직접 입력"
-    st.session_state["sb_situation"] = "직접 입력"
-    st.session_state["sb_output_format"] = []
-    
-    keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
-    for k in keys_to_del:
-        del st.session_state[k]
+    st.session_state.sb_job = "직접 입력"
+    st.session_state.sb_situation = "직접 입력"
+    st.session_state.sb_output = []
+    for k in list(st.session_state.keys()):
+        if k.startswith("tools_"): del st.session_state[k]
 
 # ==========================================
-# 3. 사이드바 (UI)
+# 3. UI 구성
 # ==========================================
 with st.sidebar:
-
     st.title("🎛️ 메뉴")
-
+    
     st.divider()
-
+    
+    # 세션 초기화
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
-    if "sb_output_format" not in st.session_state: st.session_state.sb_output_format = []
+    if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
     selected_job = "직접 입력"
     selected_situation = "직접 입력"
-    
+
     if not df_tools.empty:
-        st.success(f"✅ DB 연동됨 ({len(df_tools)}개 도구)")
-        
-        job_list = sorted(df_tools['직무'].astype(str).unique().tolist())
-        selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list, key="sb_job")
-        
+        st.success(f"✅ DB 연동됨 ({len(df_tools)}개)")
+        jobs = sorted(df_tools['직무'].astype(str).unique().tolist())
+        selected_job = st.selectbox("직무", ["직접 입력"] + jobs, key="sb_job")
         if selected_job != "직접 입력":
-            situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
-            selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list, key="sb_situation")
+            sits = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
+            selected_situation = st.selectbox("상황", ["직접 입력"] + sits, key="sb_situation")
     else:
-        st.warning("데이터가 비어있습니다.")
+        st.error("데이터 로드 실패")
+
+    st.divider()
+    
+    output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output")
     
     st.divider()
     
-    output_format = st.multiselect(
-        "필요한 결과물 양식 (다중 선택 가능)",
-        ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본", "코드"],
-        default=[],
-        key="sb_output_format"
-    )
-    st.divider()
-
-    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
-
-    st.divider()
-
-    st.caption("ⓒ 2025 Job-Fit AI Navigator")
-
-# ==========================================
-# 4. AI 모델 설정
-# ==========================================
-csv_context = ""
-if not df_tools.empty:
-    display_cols = [col for col in df_tools.columns if col != '비추천수']
-    csv_context = f"""
-    [우리가 보유한 검증된 도구 목록 (DB)]
-    {df_tools[display_cols].to_string(index=False)}
-    """
-
-sys_instruction = f"""
-너는 트렌디하고 스마트한 'AI 도구 큐레이터'야.
-사용자의 직무와 상황을 듣고 가장 '적합한' 도구를 추천해줘.
-
-### 🎯 핵심 추천 전략:
-1. **하이브리드 추천:** [검증된 도구 목록]을 참고하되, 목록에 없더라도 네가 알고 있는 최신/고성능 도구가 있다면 적극적으로 추천해줘.
-2. **비율:** 가능하면 **(DB에 있는 도구) + (새로운 도구)**를 섞어서 제안해줘.
-3. **판단 기준:** 무조건 **'사용자 상황 해결'**이 1순위야.
-
-### 📝 답변 작성 포맷:
-1. **공감 및 분석:** 상황에 대한 짧은 공감
-2. **추천 도구 (1~3개):**
-   - 🔧 **도구명:** (정확한 명칭)
-   - 💡 **추천 이유:** (이 상황에 왜 강점인지)
-   - 💰 **가격:** (무료 / 유료 / 부분유료)
-   - 🔗 **링크:** (URL)
-   - ✨ **꿀팁:** (실무 활용 팁)
-
-3. **마무리:** "이 도구가 마음에 드시면 👍를 눌러주세요! 다음에 기억해 둘게요."
-
-{csv_context}
-"""
-
-model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_instruction)
-
-# ==========================================
-# 5. 메인 채팅 인터페이스
-# ==========================================
+    st.button("🔄 대화 초기화", on_click=reset_conversation, use_container_width=True)
+# 메인 화면
 st.title("🚀 Job-Fit AI 네비게이터")
+st.markdown("""
+👋 **반가워요! 당신의 업무 파트너 Job-Fit AI입니다.**
+상황을 말씀해주시거나, 왼쪽 사이드바에서 선택해주세요.
+(마음에 드는 도구는 **👍**를 눌러주세요!)
+""")
 
-welcome_msg = """
-👋 **반가워요! 당신의 스마트한 업무 파트너, Job-Fit AI입니다.**
+if "messages" not in st.session_state: st.session_state.messages = []
 
-"이럴 땐 어떤 AI를 써야 하지?" 더 이상 혼자 고민하지 마세요.
-상황을 말씀해 주시면 제가 딱 맞는 도구를 찾아드릴게요. 
-
-💁‍♀️ **사용 꿀팁!**
-1. **👈 왼쪽 사이드바**에서 직무를 선택하면 버튼 하나로 편하게 질문할 수 있어요.
-2. 혹은 아래 채팅창에 **친구에게 묻듯 구체적으로** 물어보세요.
-   * "마케터인데 무료로 쓸 수 있는 이미지 생성 툴 있어?"
-   * "회의록 정리가 너무 귀찮은데 도와줄 AI 추천해 줘!"
-
-마음에 드는 추천에는 **따봉(👍)**을 눌러주시면 제가 꼭 기억해 둘게요!
-(도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
-"""
-st.markdown(welcome_msg)
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# 대화 내용 표시
-for i, message in enumerate(st.session_state.messages):
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        
-        if message["role"] == "assistant":
-            tools_key = f"tools_{i}"
-            
-            if tools_key not in st.session_state:
-                if st.button("🛠️ 이 답변의 도구 추천/비추천 관리하기", key=f"analyze_{i}"):
-                    with st.spinner("답변에서 도구 정보를 추출하는 중..."):
-                        user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
-                        ai_text = message["content"]
-                        tools_found = parse_tools_from_text(user_query, ai_text)
-                        
-                        if tools_found:
-                            st.session_state[tools_key] = tools_found
+for i, m in enumerate(st.session_state.messages):
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+        if m["role"] == "assistant":
+            t_key = f"tools_{i}"
+            if t_key not in st.session_state:
+                if st.button("🛠️ 도구 관리", key=f"anlz_{i}"):
+                    with st.spinner("분석 중..."):
+                        u_q = st.session_state.messages[i-1]["content"] if i>0 else ""
+                        found = parse_tools_from_text(u_q, m["content"])
+                        if found:
+                            st.session_state[t_key] = found
                             st.rerun()
-                        else:
-                            st.error("추출된 도구가 없습니다.")
+                        else: st.error("도구 없음")
             else:
-                tools_list = st.session_state[tools_key]
-                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다.")
-                
-                for tool in tools_list:
-                    t_name = tool['추천도구']
+                tools = st.session_state[t_key]
+                st.caption(f"💡 {len(tools)}개 도구 발견")
+                for t in tools:
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    with c1: st.markdown(f"**🔧 {t_name}**")
+                    with c1: st.markdown(f"**🔧 {t['추천도구']}**")
                     with c2:
-                        if st.button("👍추천", key=f"save_{i}_{t_name}"):
-                            success, msg = update_data_single_tool('like', tool)
-                            if success: 
-                                st.toast(msg, icon="✅")
-                                time.sleep(2) # [추가] 2초 대기하여 메시지를 읽을 시간을 줌
-                                st.rerun()
-                            else: 
-                                st.toast(msg, icon="⚠️")
-                                time.sleep(2) # [추가] 
-                                st.rerun() # 실패 메시지도 보고 넘어가도록
+                        if st.button("👍", key=f"s_{i}_{t['추천도구']}"):
+                            suc, msg = update_data_single_tool('like', t)
+                            if suc: st.toast(msg, icon="✅"); time.sleep(1.5); st.rerun()
+                            else: st.toast(msg, icon="⚠️")
                     with c3:
-                        if st.button("👎비추", key=f"del_{i}_{t_name}"):
-                            success, msg = update_data_single_tool('dislike', tool)
-                            if success: 
-                                st.toast(msg, icon="📉")
-                                time.sleep(2) # [추가]
-                                st.rerun()
+                        if st.button("👎", key=f"d_{i}_{t['추천도구']}"):
+                            suc, msg = update_data_single_tool('dislike', t)
+                            if suc: st.toast(msg, icon="📉"); time.sleep(1.5); st.rerun()
                             else: 
-                                if msg != "SILENT":
-                                    st.toast(msg, icon="⚠️")
-                                    time.sleep(2) # [추가]
-                                    st.rerun()
+                                if msg!="SILENT": st.toast(msg, icon="⚠️")
 
-# [콜백 함수]
-def handle_quick_recommendation(job, situation, outputs):
-    tools_str = ", ".join(outputs) if outputs else "특별히 지정하지 않음"
-    auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하고, 필요한 결과물은 '{tools_str}' 야. 적합한 AI 도구를 추천해줘."
-    
-    st.session_state.messages.append({"role": "user", "content": auto_prompt})
-    st.session_state["sb_job"] = "직접 입력"
-    st.session_state["sb_situation"] = "직접 입력"
-    st.session_state["sb_output_format"] = []
+def quick_ask(job, sit, out):
+    outs = ", ".join(out) if out else ""
+    q = f"직무: {job}, 상황: {sit}, 필요결과물: {outs}. 적합한 AI 도구 추천해줘."
+    st.session_state.messages.append({"role": "user", "content": q})
+    st.session_state.sb_job = "직접 입력"
+    st.session_state.sb_situation = "직접 입력"
+    st.session_state.sb_output = []
 
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
-    btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
-    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation, output_format), use_container_width=True)
+    st.button(f"🔍 '{selected_job}' - '{selected_situation}' 추천받기", type="primary", on_click=quick_ask, args=(selected_job, selected_situation, output_format), use_container_width=True)
 
-if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+if prompt := st.chat_input("직접 질문하기..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
-        msg_placeholder = st.empty()
+        ph = st.empty()
         with st.spinner("생각 중..."):
             try:
-                gemini_history = []
-                for m in st.session_state.messages[:-1]: 
-                    role = "user" if m["role"] == "user" else "model"
-                    gemini_history.append({"role": role, "parts": [m["content"]]})
+                hist = [{"role": "user" if m["role"]=="user" else "model", "parts": [m["content"]]} for m in st.session_state.messages[:-1]]
                 
-                chat = model.start_chat(history=gemini_history)
-                response = chat.send_message(st.session_state.messages[-1]["content"])
+                # Context 생성
+                csv_txt = ""
+                if not df_tools.empty:
+                    cols = [c for c in df_tools.columns if c!='비추천수']
+                    csv_txt = df_tools[cols].to_string(index=False)
                 
-                msg_placeholder.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                sys_prompt = f"""
+                너는 AI 도구 큐레이터야. 사용자 상황에 맞는 도구를 추천해.
+                [DB 도구 목록]
+                {csv_txt}
+                
+                전략: DB와 새로운 도구를 섞어서(하이브리드) 추천.
+                형식: 도구명, 이유, 가격, 링크, 꿀팁 포함.
+                """
+                model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_prompt)
+                
+                chat = model.start_chat(history=hist)
+                resp = chat.send_message(st.session_state.messages[-1]["content"])
+                ph.markdown(resp.text)
+                st.session_state.messages.append({"role": "assistant", "content": resp.text})
                 st.rerun()
             except Exception as e:
-                msg_placeholder.error(f"오류: {e}")
+                ph.error(f"오류: {e}")
                 st.session_state.messages.pop()
                 st.rerun()

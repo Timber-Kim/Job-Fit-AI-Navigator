@@ -14,11 +14,11 @@ st.set_page_config(page_title="Job-Fit AI 도구 추천",
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
-    GOOGLE_API_KEY = "여기에_새로_발급받은_API_키를_넣으세요" 
+    GOOGLE_API_KEY = "여기에_API_키를_입력하세요" 
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# [수정 1] 파일 경로를 절대 경로로 잡아서 무조건 찾게 함
+# 절대 경로 설정
 current_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE_PATH = os.path.join(current_dir, 'ai_tools.csv')
 
@@ -26,21 +26,16 @@ CSV_FILE_PATH = os.path.join(current_dir, 'ai_tools.csv')
 @st.cache_data
 def load_data():
     if not os.path.exists(CSV_FILE_PATH):
-        st.error(f"❌ 파일을 찾을 수 없습니다: {CSV_FILE_PATH}")
         return None
 
     try:
-        # 1차 시도: utf-8-sig (엑셀 호환)
         df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
     except:
         try:
-            # 2차 시도: cp949 (한글 윈도우)
             df = pd.read_csv(CSV_FILE_PATH, encoding='cp949', on_bad_lines='skip')
-        except Exception as e:
-            st.error(f"❌ 파일 읽기 실패: {e}")
+        except:
             return None
 
-    # [중요] '비추천수' 컬럼 관리
     if df is not None:
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
@@ -51,13 +46,12 @@ def load_data():
 df_tools = load_data()
 
 # ==========================================
-# 2. (핵심 기능) AI 정보 추출 및 CSV 업데이트 로직 (다중 처리 버전)
+# 2. AI 정보 추출 및 CSV 업데이트 로직
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
+        extractor_model = genai.GenerativeModel('gemini-2.5-Pro')
         
-        # [변경점 1] 프롬프트 수정: "배열(List) 형태로 여러 개를 찾아라"
         extraction_prompt = f"""
         너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON 리스트로 줘.
         
@@ -66,7 +60,7 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         A: {ai_text}
         
         [요청사항]
-        1. AI 답변에서 추천한 **모든** 핵심 '추천도구'(이름)을 찾아줘. (여러 개일 수 있음)
+        1. AI 답변에서 추천한 **모든** 핵심 '추천도구'(이름)을 찾아줘.
         2. action이 'like'라면, 각 도구별로 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크 정보도 추출해.
         
         출력 포맷(JSON List):
@@ -79,10 +73,6 @@ def extract_and_update_csv(action_type, user_text, ai_text):
                 "특징_및_팁": "...",
                 "유료여부": "...",
                 "링크": "..."
-            }},
-            {{
-                "추천도구": "도구B",
-                ...
             }}
         ]
         오직 JSON List만 출력해.
@@ -91,14 +81,10 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         result = extractor_model.generate_content(extraction_prompt)
         cleaned_json = result.text.replace("```json", "").replace("```", "").strip()
         
-        # JSON 파싱 (이제 리스트로 받습니다)
         tools_data_list = json.loads(cleaned_json)
-        
-        # 만약 AI가 실수로 리스트가 아니라 하나만(Dict) 줬을 경우를 대비
         if isinstance(tools_data_list, dict):
             tools_data_list = [tools_data_list]
 
-        # 파일 읽기
         if os.path.exists(CSV_FILE_PATH):
             df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
         else:
@@ -107,29 +93,23 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
 
-        # 결과 메시지를 모을 리스트
         result_messages = []
-        has_change = False # 변경사항이 있는지 체크
+        has_change = False
 
-        # [변경점 2] 추출된 도구들을 하나씩 반복하며 처리
         for data_dict in tools_data_list:
             target_tool = data_dict.get('추천도구')
-            if not target_tool: continue # 이름 없으면 패스
+            if not target_tool: continue
 
-            # CASE 1: 👍 좋아요
             if action_type == 'like':
                 if target_tool in df['추천도구'].values:
-                    # 이미 있으면 스킵
                     result_messages.append(f"⚠️ '{target_tool}'(중복)")
                 else:
-                    # 없으면 추가
                     data_dict['비추천수'] = 0
                     new_row = pd.DataFrame([data_dict])
                     df = pd.concat([df, new_row], ignore_index=True)
                     result_messages.append(f"✅ '{target_tool}'")
                     has_change = True
 
-            # CASE 2: 👎 싫어요
             elif action_type == 'dislike':
                 if target_tool not in df['추천도구'].values:
                     result_messages.append(f"❓ '{target_tool}'(없음)")
@@ -145,11 +125,9 @@ def extract_and_update_csv(action_type, user_text, ai_text):
                         result_messages.append(f"📉 '{target_tool}'({current_dislikes}/3)")
                     has_change = True
 
-        # 저장 및 결과 반환
         if has_change:
             df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
             
-        # 결과 메시지 조합 (예: "✅ ChatGPT, ⚠️ Notion(중복) 처리됨")
         final_msg = ", ".join(result_messages)
         return True, final_msg
 
@@ -157,12 +135,12 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         return False, f"오류 발생: {str(e)}"
 
 # ==========================================
-# 3. 사이드바 (UI) - Key 추가됨
+# 3. 사이드바 (UI)
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
-    # 초기값 설정을 위한 변수 선언
+    # [중요] 초기화 오류 방지를 위한 Session State 사전 설정
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -175,12 +153,11 @@ with st.sidebar:
         st.success(f"✅ DB 연동됨 ({len(df_tools)}개 도구)")
         
         job_list = sorted(df_tools['직무'].unique().tolist())
-        # [수정] key='sb_job' 추가
+        # key 설정 유지
         selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list, key="sb_job")
         
         if selected_job != "직접 입력":
             situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].unique().tolist())
-            # [수정] key='sb_situation' 추가
             selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list, key="sb_situation")
     else:
         st.error("CSV 파일을 찾지 못했습니다.")
@@ -198,7 +175,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 4. AI 모델 설정 (메인 챗봇)
+# 4. AI 모델 설정
 # ==========================================
 csv_context = ""
 if df_tools is not None:
@@ -209,25 +186,34 @@ if df_tools is not None:
     """
 
 sys_instruction = f"""
-너는 '직무/상황별 AI 도구 추천 전문가'야. 
+너는 '직무/상황별 AI 도구 추천 파트너'야. 
+딱딱한 기계가 아니라, 옆자리 유능하고 친절한 동료처럼 따뜻하게 말해줘.
 사용자의 직무와 상황을 듣고, [내부 AI 도구 데이터베이스]를 최우선으로 참고하여 도구를 추천해줘.
 
-### 🎯 답변 원칙:
-1. **데이터 우선:** 데이터베이스 내용을 참고하되, 없으면 외부 지식을 활용해.
-2. **형식:** '표(Table)' 또는 '글머리 기호' 사용.
-3. **사용자 필터:** {', '.join(output_format) if output_format else '전체'} 양식 고려.
-4. **필수 포함:** 도구명, 추천 이유, 유료여부, 링크
+### 🎯 답변 작성 규칙:
+데이터베이스 학습을 위해 **추천 도구 정보는 반드시 아래 포맷을 지켜줘.**
+
+1. **인사 & 공감:** 사용자의 상황에 공감하는 멘트로 시작
+2. **핵심 추천:** 도구 이름과 한 줄 요약
+3. **상세 정보 (이 형식을 꼭 지켜줘):**
+   - 🔧 **도구명:** (정확한 명칭)
+   - 💡 **추천 이유:** (이 상황에 왜 딱인지)
+   - 💰 **가격:** (무료 / 유료 / 부분유료)
+   - 🔗 **링크:** (URL)
+   - ✨ **꿀팁:** (사용 팁)
+
+4. **마무리:** 추가로 도와줄 게 없는지 다정하게 물어보기
 
 {csv_context}
 """
 
-# [수정 3] 메인 모델도 2.5 -> 1.5-pro로 변경
 model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
 # 5. 메인 채팅 인터페이스
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
+
 welcome_msg = """
 👋 **반가워요! 당신의 스마트한 업무 파트너, Job-Fit AI입니다.**
 
@@ -243,10 +229,8 @@ welcome_msg = """
 마음에 드는 추천에는 **따봉(👍)**을 눌러주시면 제가 꼭 기억해 둘게요!
 (도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
 """
+st.markdown(welcome_msg)
 
-st.caption(welcome_msg)
-
-# 대화 기록 초기화
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -255,20 +239,16 @@ for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
         
-        # AI 답변 하단에 버튼 표시
         if message["role"] == "assistant":
             col_a, col_b, col_empty = st.columns([1, 1, 8])
-            
             btn_key_like = f"like_{i}"
             btn_key_dislike = f"dislike_{i}"
             
             with col_a:
                 if st.button("👍 추천", key=btn_key_like, help="이 도구를 CSV에 자동 추가"):
-                    # user_query가 없는 경우(첫 인사 등) 방지
                     if i > 0:
                         user_query = st.session_state.messages[i-1]["content"]
                         ai_answer = message["content"]
-                        
                         with st.spinner("💾 학습 중..."):
                             success, msg = extract_and_update_csv('like', user_query, ai_answer)
                             if success:
@@ -284,7 +264,6 @@ for i, message in enumerate(st.session_state.messages):
                     if i > 0:
                         user_query = st.session_state.messages[i-1]["content"]
                         ai_answer = message["content"]
-                        
                         with st.spinner("처리 중..."):
                             success, msg = extract_and_update_csv('dislike', user_query, ai_answer)
                             if success:
@@ -295,45 +274,38 @@ for i, message in enumerate(st.session_state.messages):
                     else:
                         st.warning("처리할 질문이 없습니다.")
 
-# ==========================================
-# 빠른 질문 버튼 (누르면 사이드바 초기화 기능 추가)
-# ==========================================
-# 사이드바 선택값이 있을 때만 버튼 표시
+# [핵심 수정] 버튼 클릭 시 실행할 콜백 함수 정의 (오류 해결!)
+def handle_quick_recommendation(job, situation):
+    # 1. 자동 질문 생성
+    auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
+    
+    # 2. 대화 기록 초기화 및 질문 추가
+    st.session_state.messages = [{"role": "user", "content": auto_prompt}]
+    
+    # 3. 사이드바 초기화 (여기서 하면 안전함)
+    st.session_state["sb_job"] = "직접 입력"
+    st.session_state["sb_situation"] = "직접 입력"
+
+# 빠른 질문 버튼
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
     
-    if st.button(btn_label, type="primary"):
-        # 1. 질문 생성
-        auto_prompt = f"나는 '{selected_job}' 직무를 맡고 있어. 현재 '{selected_situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
-        
-        # 2. 대화 기록을 '새 질문' 하나로 덮어쓰기 (화면 청소)
-        st.session_state.messages = [{"role": "user", "content": auto_prompt}]
-        
-        # 3. [핵심] 사이드바 선택값을 '직접 입력'으로 강제 초기화 -> 버튼이 사라짐!
-        st.session_state["sb_job"] = "직접 입력"
-        st.session_state["sb_situation"] = "직접 입력"
-        
-        # 4. 화면 새로고침
-        st.rerun()
+    # [수정] on_click으로 콜백 함수 연결 (args로 변수 전달)
+    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation))
 
 # 직접 질문 입력
-if prompt := st.chat_input("직접 질문하기 (예: 프론트엔드 개발자인데 코드 리펙토링을 위한 툴 추천해줄래?)"):
+if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
-# AI 답변 생성 로직
+# AI 답변 생성
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         with st.spinner("AI가 생각 중입니다..."):
             try:
                 chat_history = [{"role": m["role"], "parts": [m["content"]]} for m in st.session_state.messages if m["role"] != "system"]
-                # chat_history가 비어있을 경우 대비
-                if not chat_history:
-                    chat_history = None
-                
-                # history 전달 시 마지막 메시지 제외 로직 점검
-                # start_chat의 history는 '이전 대화'만 넣어야 하므로 [:-1]이 맞음
+                if not chat_history: chat_history = None
                 history_for_model = chat_history[:-1] if chat_history else []
                 
                 chat = model.start_chat(history=history_for_model)
@@ -344,3 +316,4 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 st.rerun()
             except Exception as e:
                 message_placeholder.error(f"오류 발생: {e}")
+                st.rerun()

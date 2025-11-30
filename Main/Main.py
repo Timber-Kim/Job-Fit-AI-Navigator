@@ -22,9 +22,8 @@ genai.configure(api_key=GOOGLE_API_KEY)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE_PATH = os.path.join(current_dir, 'ai_tools.csv')
 
-# [핵심 변경] 데이터를 로드해서 Session State(메모리)에 보관하는 함수
+# 데이터 초기화 함수 (메모리 우선)
 def init_data():
-    # 이미 메모리에 데이터가 있다면 다시 로드하지 않음 (유지)
     if "master_df" not in st.session_state:
         if os.path.exists(CSV_FILE_PATH):
             try:
@@ -37,16 +36,12 @@ def init_data():
         else:
             df = pd.DataFrame(columns=['직무','상황','결과물','추천도구','특징_및_팁','유료여부','링크','비추천수'])
         
-        # 비추천수 컬럼 보장
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
             
         st.session_state.master_df = df
 
-# 앱 시작 시 데이터 초기화 실행
 init_data()
-
-# 편의를 위해 변수 할당
 df_tools = st.session_state.master_df
 
 # ==========================================
@@ -90,10 +85,7 @@ def parse_tools_from_text(user_text, ai_text):
         return []
 
 def update_data_single_tool(action_type, tool_data):
-    """
-    [핵심] 파일이 아니라 '메모리(Session State)'를 먼저 수정하고 파일 저장은 시도만 함
-    """
-    df = st.session_state.master_df # 메모리에 있는 데이터 가져오기
+    df = st.session_state.master_df
     target_tool = tool_data.get('추천도구')
     
     if not target_tool: return False, "도구명이 없습니다."
@@ -106,7 +98,6 @@ def update_data_single_tool(action_type, tool_data):
             else:
                 tool_data['비추천수'] = 0
                 new_row = pd.DataFrame([tool_data])
-                # 메모리 업데이트
                 st.session_state.master_df = pd.concat([df, new_row], ignore_index=True)
                 msg = f"✅ '{target_tool}' 저장 완료!"
 
@@ -125,11 +116,11 @@ def update_data_single_tool(action_type, tool_data):
                 else:
                     msg = f"📉 '{target_tool}' 비추천 ({current}/3)"
 
-        # [파일 저장 시도] 로컬 환경을 위해 CSV 저장 시도 (실패해도 메모리는 유지됨)
+        # 파일 저장 시도
         try:
             st.session_state.master_df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
         except:
-            pass # 서버 권한 문제 등으로 저장 못 해도 패스 (메모리엔 남아있으므로)
+            pass 
 
         return True, msg
                 
@@ -141,6 +132,8 @@ def reset_conversation():
     st.session_state.messages = []
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
+    st.session_state["sb_output_format"] = [] # [수정] 결과물 양식도 초기화
+    
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
     for k in keys_to_del:
         del st.session_state[k]
@@ -150,18 +143,15 @@ def reset_conversation():
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
-    
-    st.divider()
 
-    if "sb_job" not in st.session_state:
-        st.session_state.sb_job = "직접 입력"
-    if "sb_situation" not in st.session_state:
-        st.session_state.sb_situation = "직접 입력"
+    # Session State 초기화
+    if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
+    if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
+    if "sb_output_format" not in st.session_state: st.session_state.sb_output_format = []
 
     selected_job = "직접 입력"
     selected_situation = "직접 입력"
     
-    # 메모리에 있는 데이터 사용
     if not df_tools.empty:
         st.success(f"✅ DB 연동됨 ({len(df_tools)}개 도구)")
         
@@ -172,20 +162,22 @@ with st.sidebar:
             situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
             selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list, key="sb_situation")
     else:
-        st.warning("데이터가 비어있거나 로드되지 않았습니다.")
+        st.warning("데이터가 비어있습니다.")
     
-    st.divider()
-    
+    # [수정] 결과물 양식 선택에 key 추가 (초기화 및 값 전달용)
     output_format = st.multiselect(
-        "필요한 결과물 양식",
-        ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
-        default=[]
+        "필요한 결과물 양식 (다중 선택 가능)",
+        ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본", "코드"],
+        default=[],
+        key="sb_output_format"
     )
-
+    
+    
     st.divider()
 
     st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
     
+
     st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
 # ==========================================
@@ -258,11 +250,10 @@ for i, message in enumerate(st.session_state.messages):
             tools_key = f"tools_{i}"
             
             if tools_key not in st.session_state:
-                if st.button("🛠️ 이 답변의 도구 추천/비추천 관리하기", key=f"analyze_{i}"):
+                if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
                     with st.spinner("답변에서 도구 정보를 추출하는 중..."):
                         user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
                         ai_text = message["content"]
-                        
                         tools_found = parse_tools_from_text(user_query, ai_text)
                         
                         if tools_found:
@@ -272,16 +263,14 @@ for i, message in enumerate(st.session_state.messages):
                             st.error("추출된 도구가 없습니다.")
             else:
                 tools_list = st.session_state[tools_key]
-                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 추천/비추천 버튼을 눌러주세요.")
+                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다.")
                 
                 for tool in tools_list:
                     t_name = tool['추천도구']
-                    
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    with c1:
-                        st.markdown(f"**🔧 {t_name}**")
+                    with c1: st.markdown(f"**🔧 {t_name}**")
                     with c2:
-                        if st.button("👍추천", key=f"save_{i}_{t_name}"):
+                        if st.button("👍저장", key=f"save_{i}_{t_name}"):
                             success, msg = update_data_single_tool('like', tool)
                             if success: 
                                 st.toast(msg, icon="✅")
@@ -295,17 +284,26 @@ for i, message in enumerate(st.session_state.messages):
                                 st.rerun()
                             else: st.toast(msg, icon="⚠️")
 
-# [콜백 함수] 사이드바 초기화
-def handle_quick_recommendation(job, situation):
-    auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
+# [콜백 함수 - 수정됨] 결과물 양식까지 포함하여 질문 생성 및 초기화
+def handle_quick_recommendation(job, situation, outputs):
+    # 결과물 양식을 문자열로 변환
+    tools_str = ", ".join(outputs) if outputs else "특별히 지정하지 않음"
+    
+    # [요청하신 프롬프트 반영]
+    auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하고, 필요한 결과물은 '{tools_str}' 야. 적합한 AI 도구를 추천해줘."
+    
     st.session_state.messages.append({"role": "user", "content": auto_prompt})
+    
+    # 사이드바 값들 초기화
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
+    st.session_state["sb_output_format"] = [] # 결과물 양식 선택 초기화
 
 # 빠른 추천 버튼
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
-    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
+    # [수정] output_format 변수도 args로 넘겨줌
+    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation, output_format), use_container_width=True)
 
 # 직접 질문
 if prompt := st.chat_input("질문하기..."):

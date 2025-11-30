@@ -50,7 +50,7 @@ df_tools = load_data()
 # ==========================================
 def extract_and_update_csv(action_type, user_text, ai_text):
     try:
-        extractor_model = genai.GenerativeModel('gemini-2.5-Pro')
+        extractor_model = genai.GenerativeModel('gemini-2.5-pro')
         
         extraction_prompt = f"""
         너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON 리스트로 줘.
@@ -294,7 +294,7 @@ if selected_job != "직접 입력" and selected_situation != "직접 입력":
     st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation))
 
 # 직접 질문 입력
-if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+if prompt := st.chat_input("직접 질문하기 (예: 나는 마케터 직무를 맡고 있어. 현재 보고서 작성 업무를 해야 하는데 적합한 AI 도구를 추천해줘.)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 

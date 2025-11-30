@@ -150,10 +150,6 @@ def reset_conversation():
 with st.sidebar:
     st.title("🎛️ 메뉴")
     
-    # [수정] 초기화 버튼을 사이드바 최상단으로 이동
-    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
-    st.divider()
-
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -181,7 +177,11 @@ with st.sidebar:
         ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
         default=[]
     )
+    st.divider()
+    # [수정] 초기화 버튼을 사이드바 최상단으로 이동
+    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
     
+
     st.caption("ⓒ 2024 Job-Fit AI Navigator")
 
 # ==========================================

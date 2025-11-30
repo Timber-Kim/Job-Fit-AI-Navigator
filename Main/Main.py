@@ -89,9 +89,6 @@ def parse_tools_from_text(user_text, ai_text):
         return []
 
 def update_csv_single_tool(action_type, tool_data):
-    """
-    개별 도구(tool_data) 하나를 CSV에 업데이트
-    """
     try:
         if os.path.exists(CSV_FILE_PATH):
             df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
@@ -137,12 +134,26 @@ def update_csv_single_tool(action_type, tool_data):
     except Exception as e:
         return False, f"오류: {str(e)}"
 
+# [콜백 함수] 대화 및 상태 초기화
+def reset_conversation():
+    st.session_state.messages = []
+    st.session_state["sb_job"] = "직접 입력"
+    st.session_state["sb_situation"] = "직접 입력"
+    # 도구 분석 캐시도 삭제
+    keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
+    for k in keys_to_del:
+        del st.session_state[k]
+
 # ==========================================
 # 3. 사이드바 (UI)
 # ==========================================
 with st.sidebar:
-    st.title("🎛️ 추천 옵션")
+    st.title("🎛️ 메뉴")
     
+    # [수정] 초기화 버튼을 사이드바 최상단으로 이동
+    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
+    st.divider()
+
     if "sb_job" not in st.session_state:
         st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state:
@@ -207,7 +218,6 @@ sys_instruction = f"""
 {csv_context}
 """
 
-# 무료 사용량이 넉넉한 Flash 모델 사용 (Pro는 50회 제한으로 에러 가능성 높음)
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_instruction)
 
 # ==========================================
@@ -242,23 +252,20 @@ for i, message in enumerate(st.session_state.messages):
         
         # AI 답변 아래에만 '도구 관리' 버튼 표시
         if message["role"] == "assistant":
-            # 이 메시지에 'extracted_tools'가 저장되어 있는지 확인
             tools_key = f"tools_{i}"
             
             # [Step 1] 아직 분석 안 된 상태면 '분석 버튼' 보여주기
             if tools_key not in st.session_state:
                 if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
                     with st.spinner("답변에서 도구 정보를 추출하는 중..."):
-                        # 이전 사용자 질문 가져오기
                         user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
                         ai_text = message["content"]
                         
-                        # API 호출해서 도구 리스트 뽑기
                         tools_found = parse_tools_from_text(user_query, ai_text)
                         
                         if tools_found:
                             st.session_state[tools_key] = tools_found
-                            st.rerun() # 화면 갱신해서 목록 보여주기
+                            st.rerun()
                         else:
                             st.error("추출된 도구가 없습니다.")
             
@@ -270,7 +277,6 @@ for i, message in enumerate(st.session_state.messages):
                 for tool in tools_list:
                     t_name = tool['추천도구']
                     
-                    # 카드 형태로 보여주기 (컬럼 사용)
                     c1, c2, c3 = st.columns([3, 1, 1])
                     with c1:
                         st.markdown(f"**🔧 {t_name}**")
@@ -298,23 +304,10 @@ def handle_quick_recommendation(job, situation):
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
-def reset_conversation():
-    st.session_state.messages = []
-    st.session_state["sb_job"] = "직접 입력"
-    st.session_state["sb_situation"] = "직접 입력"
-    # 도구 분석 캐시도 날리기 위해 keys 확인
-    keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
-    for k in keys_to_del:
-        del st.session_state[k]
-
-# 버튼 영역
-col1, col2 = st.columns([8, 2])
-with col2:
-    st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
-with col1:
-    if selected_job != "직접 입력" and selected_situation != "직접 입력":
-        btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
-        st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
+# [수정] 메인 화면에는 '빠른 질문 버튼'만 남김
+if selected_job != "직접 입력" and selected_situation != "직접 입력":
+    btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
+    st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
 
 # 직접 질문
 if prompt := st.chat_input("질문하기..."):
@@ -327,9 +320,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
         msg_placeholder = st.empty()
         with st.spinner("생각 중..."):
             try:
-                # [핵심 수정] Gemini History 형식에 맞게 변환 (user/model)
                 gemini_history = []
-                for m in st.session_state.messages[:-1]: # 마지막 질문 제외
+                for m in st.session_state.messages[:-1]: 
                     role = "user" if m["role"] == "user" else "model"
                     gemini_history.append({"role": role, "parts": [m["content"]]})
                 
@@ -341,4 +333,5 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 st.rerun()
             except Exception as e:
                 msg_placeholder.error(f"오류: {e}")
-                st.session_state.messages.pop() 
+                st.session_state.messages.pop()
+                st.rerun()

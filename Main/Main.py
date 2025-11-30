@@ -194,7 +194,7 @@ model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instructi
 # 5. 메인 채팅 인터페이스
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
-st.caption("""
+st.markdown("""
 👋 **반가워요! 당신의 스마트한 업무 파트너, Job-Fit AI입니다.**
 
 "이럴 땐 어떤 AI를 써야 하지?" 더 이상 혼자 고민하지 마세요.

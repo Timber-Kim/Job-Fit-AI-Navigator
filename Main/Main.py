@@ -147,7 +147,7 @@ model = genai.GenerativeModel(
 )
 
 # ==========================================
-# 5. 메인 채팅 인터페이스
+# 5. 메인 채팅 인터페이스 (버튼 & 채팅 통합 버전)
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
 st.caption("당신의 업무 상황을 말해주세요. 최적의 AI 도구를 찾아드립니다.")
@@ -156,55 +156,74 @@ st.caption("당신의 업무 상황을 말해주세요. 최적의 AI 도구를 �
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 기존 대화 내용 표시
+# -------------------------------------------------------
+# 1. 기존 대화 내용 표시
+# -------------------------------------------------------
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # -------------------------------------------------------
-# [새로운 기능] 빠른 질문 버튼 (사이드바 선택 값 활용)
+# 2. 버튼으로 질문하기 (사이드바 연동)
 # -------------------------------------------------------
-# 사용자가 사이드바에서 직무와 상황을 모두 선택했을 때만 버튼 표시
+# 사이드바에서 선택된 값이 있고, 아직 질문하지 않은 상태일 때만 버튼 동작
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
-    if st.button(f"🔍 '{selected_job}'의 '{selected_situation}' 도구 추천받기"):
-        # 버튼을 누르면 AI에게 보낼 질문을 자동으로 생성
+    # 버튼 문구 생성
+    btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
+    
+    if st.button(btn_label, type="primary"):
+        # 자동 질문 생성
         auto_prompt = f"나는 '{selected_job}' 직무를 맡고 있어. 현재 '{selected_situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
         
-        # 사용자 메시지로 추가
+        # 메시지 저장 및 화면 새로고침 (중요!)
         st.session_state.messages.append({"role": "user", "content": auto_prompt})
-        st.rerun() # 화면을 새로고침해서 채팅창에 반영
+        st.rerun()
 
 # -------------------------------------------------------
-# 기본 채팅 입력창 (직접 타이핑)
+# 3. 채팅창으로 직접 질문하기
 # -------------------------------------------------------
 if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
-    
-    # 사용자 메시지 표시
-    st.chat_message("user").markdown(prompt)
+    # 메시지 저장 및 화면 새로고침
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.rerun()
 
-    # AI 답변 생성 과정
+# -------------------------------------------------------
+# 4. AI 답변 생성 (여기가 핵심! 로직 분리)
+# -------------------------------------------------------
+# 마지막 메시지가 'user'(사용자)라면 -> AI가 대답할 차례!
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
         try:
-            # 대화 기록 구성
-            chat_history = [
-                {"role": m["role"], "parts": [m["content"]]} 
-                for m in st.session_state.messages 
-                if m["role"] != "system"
-            ]
-            
-            # AI에게 질문
-            chat = model.start_chat(history=chat_history)
-            response = chat.send_message(prompt)
-            
-            # 답변 출력
-            message_placeholder.markdown(response.text)
-            
-            # 답변 저장
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-            
+            # 로딩 표시 (Spinner)
+            with st.spinner("AI가 데이터를 분석하여 도구를 찾는 중입니다..."):
+                
+                # 대화 기록(Context) 구성 (시스템 메시지 제외)
+                chat_history = [
+                    {"role": m["role"], "parts": [m["content"]]} 
+                    for m in st.session_state.messages 
+                    if m["role"] != "system"
+                ]
+                
+                # AI에게 질문 (마지막 사용자 메시지 내용으로)
+                last_user_message = st.session_state.messages[-1]["content"]
+                
+                chat = model.start_chat(history=chat_history[:-1]) # 마지막 메시지는 제외하고 history 설정
+                response = chat.send_message(last_user_message)
+                
+                # 답변 출력
+                message_placeholder.markdown(response.text)
+                
+                # 답변 저장
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                
+                # 만족도 피드백 UI
+                col1, col2 = st.columns([1, 8])
+                with col1:
+                    st.button("👍", key=f"like_{len(st.session_state.messages)}")
+
         except Exception as e:
-            message_placeholder.error("죄송합니다. 잠시 오류가 발생했습니다.")
+            message_placeholder.error("죄송합니다. 답변 생성 중 오류가 발생했습니다.")
             st.error(f"상세 에러: {e}")

@@ -86,30 +86,43 @@ def parse_tools_from_text(user_text, ai_text):
         return []
 
 def update_data_single_tool(action_type, tool_data):
-    df = st.session_state.master_df
     target_tool = tool_data.get('추천도구')
-    
     if not target_tool: return False, "도구명이 없습니다."
 
     try:
+        # [핵심 변경 1] 저장 버튼 누르는 순간, 최신 CSV 파일을 다시 읽어옵니다. (동시성 해결)
+        if os.path.exists(CSV_FILE_PATH):
+            try:
+                # 최신 파일 로드
+                df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
+                if '비추천수' not in df.columns:
+                    df['비추천수'] = 0
+            except:
+                # 파일 깨졌으면 메모리 데이터라도 사용
+                df = st.session_state.master_df.copy()
+        else:
+            df = st.session_state.master_df.copy()
+
         msg = ""
         success = True
-
+        
+        # [핵심 변경 2] '메모리'가 아니라 방금 읽어온 'df'를 수정합니다.
+        
         # CASE 1: 👍 좋아요
         if action_type == 'like':
             if target_tool in df['추천도구'].values:
                 idx = df[df['추천도구'] == target_tool].index
-                current_dislike = st.session_state.master_df.loc[idx, '비추천수'].values[0]
+                current_dislike = df.loc[idx, '비추천수'].values[0]
                 
                 if current_dislike > 0:
-                    st.session_state.master_df.loc[idx, '비추천수'] -= 1
-                    msg = f"✅ '{target_tool}' 비추천 1회 차감! (현재 {st.session_state.master_df.loc[idx, '비추천수'].values[0]})"
+                    df.loc[idx, '비추천수'] -= 1
+                    msg = f"✅ '{target_tool}' 비추천 1회 차감! (현재 {df.loc[idx, '비추천수'].values[0]})"
                 else:
                     msg = f"✨ '{target_tool}'은(는) 이미 안전하게 저장되어 있습니다."
             else:
                 tool_data['비추천수'] = 0
                 new_row = pd.DataFrame([tool_data])
-                st.session_state.master_df = pd.concat([df, new_row], ignore_index=True)
+                df = pd.concat([df, new_row], ignore_index=True)
                 msg = f"🎉 '{target_tool}' 데이터베이스에 새로 저장 완료!"
 
         # CASE 2: 👎 싫어요
@@ -118,20 +131,18 @@ def update_data_single_tool(action_type, tool_data):
                 return False, f"❓ '{target_tool}'은(는) 아직 저장되지 않은 도구입니다."
             else:
                 idx = df[df['추천도구'] == target_tool].index
-                st.session_state.master_df.loc[idx, '비추천수'] += 1
-                current = st.session_state.master_df.loc[idx, '비추천수'].values[0]
+                df.loc[idx, '비추천수'] += 1
+                current = df.loc[idx, '비추천수'].values[0]
                 
                 if current >= 3:
-                    st.session_state.master_df = st.session_state.master_df.drop(idx).reset_index(drop=True)
+                    df = df.drop(idx).reset_index(drop=True)
                     msg = f"🗑️ '{target_tool}' 삭제됨 (비추천 3회 누적)"
                 else:
                     msg = f"📉 '{target_tool}' 비추천 ({current}/3회)"
 
-        # 파일 저장 시도
-        try:
-            st.session_state.master_df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-        except:
-            pass 
+        # [핵심 변경 3] 파일 저장 후 -> 내 메모리(Session State)도 최신화
+        df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
+        st.session_state.master_df = df # 내 화면도 최신 데이터로 동기화
 
         return success, msg
                 

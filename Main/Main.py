@@ -318,7 +318,7 @@ if selected_job != "직접 입력" and selected_situation != "직접 입력":
     btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
     st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation, output_format), use_container_width=True)
 
-if prompt := st.chat_input("질문하기..."):
+if prompt := st.chat_input("직접 질문하기(예시 : 치킨집사장인데 주식 트레이더로 업무를 전환 하려고해 공부를 위한 AI를 추천해줄래?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 

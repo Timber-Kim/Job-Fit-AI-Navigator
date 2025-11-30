@@ -24,25 +24,40 @@ except:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # ==========================================
-# 2. 데이터 로드 함수 (오류 방지 기능 추가)
+# 2. 데이터 로드 함수 (위치 추적 및 디버깅 기능 추가)
 # ==========================================
 @st.cache_data
 def load_data():
-    file_path = 'ai_tools.csv'
+    # 1. 현재 코드 파일(Main.py)의 위치 (보통 Main 폴더)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # 2. 그 상위 폴더 (보통 프로젝트 루트 폴더)
+    parent_dir = os.path.dirname(current_dir)
     
-    # 파일이 없으면 빈 데이터 반환
-    if not os.path.exists(file_path):
+    # 후보 1: Main 폴더 안에 있는지 확인
+    path1 = os.path.join(current_dir, 'ai_tools.csv')
+    # 후보 2: 상위 폴더(루트)에 있는지 확인
+    path2 = os.path.join(parent_dir, 'ai_tools.csv')
+    
+    target_path = None
+    
+    if os.path.exists(path1):
+        target_path = path1
+    elif os.path.exists(path2):
+        target_path = path2
+    else:
+        # 둘 다 없으면 디버깅 정보를 화면에 띄움 (원인 파악용)
+        st.error("🚨 서버에서 파일을 찾을 수 없습니다!")
+        st.write(f"📂 1. Main 폴더 파일 목록: {os.listdir(current_dir)}")
+        st.write(f"📂 2. 상위 폴더 파일 목록: {os.listdir(parent_dir)}")
         return None
     
-    # 1차 시도: utf-8 인코딩 (일반적)
+    # 파일 읽기
     try:
-        df = pd.read_csv(file_path, encoding='utf-8')
+        df = pd.read_csv(target_path, encoding='utf-8')
         return df
     except:
-        # 2차 시도: cp949 인코딩 (한글 윈도우 & 엑셀 저장 시)
-        # on_bad_lines='skip': 쉼표 개수가 안 맞는 오류 행은 무시하고 읽기
         try:
-            df = pd.read_csv(file_path, encoding='cp949', on_bad_lines='skip')
+            df = pd.read_csv(target_path, encoding='cp949', on_bad_lines='skip')
             return df
         except:
             return None

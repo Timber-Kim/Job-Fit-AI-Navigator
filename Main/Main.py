@@ -70,29 +70,39 @@ def load_data():
 df_tools = load_data()
 
 # ==========================================
-# 3. 사이드바 (필터 및 설정)
+# 3. 사이드바 (데이터 기반 필터링)
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
-    # 요구사항: Output 템플릿 선택
+    # [새로운 기능] CSV 기반 직무/상황 선택 기능
+    selected_job = "직접 입력"
+    selected_situation = "직접 입력"
+    
+    if df_tools is not None:
+        # 1. 직무 목록 추출 (중복 제거 및 정렬)
+        job_list = sorted(df_tools['직무'].unique().tolist())
+        # '직접 입력' 옵션을 맨 앞에 추가
+        selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list)
+        
+        # 2. 선택한 직무에 맞는 상황 목록만 필터링
+        if selected_job != "직접 입력":
+            # 해당 직무의 상황 데이터만 가져오기
+            situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].unique().tolist())
+            selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list)
+    
+    st.divider()
+    
+    # 결과물 양식 선택 (기존 유지)
     output_format = st.multiselect(
-        "필요한 결과물 양식은?",
+        "필요한 결과물 양식",
         ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
         default=[]
     )
     
-    st.divider()
+    st.info("💡 팁: 직무와 상황을 선택하고 '자동 질문 생성' 버튼을 누르면 편합니다.")
     
-    # 데이터 로드 상태 표시
-    if df_tools is not None:
-        st.success(f"✅ AI 도구 데이터 연동됨 ({len(df_tools)}개)")
-        with st.expander("데이터 미리보기"):
-            st.dataframe(df_tools.head(3))
-    else:
-        st.error("❌ 'ai_tools.csv' 파일을 찾을 수 없습니다.")
-
-    st.info("💡 팁: '만족도 보정'은 현재 세션에서만 유지됩니다.")
+    # 대화 초기화 버튼
     if st.button("🗑️ 대화 내용 초기화"):
         st.session_state.messages = []
         st.rerun()
@@ -151,23 +161,38 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 채팅 입력창
-if prompt := st.chat_input("예: 개발자인데 코드짜는 거 도와주는 무료 툴 있어?"):
+# -------------------------------------------------------
+# [새로운 기능] 빠른 질문 버튼 (사이드바 선택 값 활용)
+# -------------------------------------------------------
+# 사용자가 사이드바에서 직무와 상황을 모두 선택했을 때만 버튼 표시
+if selected_job != "직접 입력" and selected_situation != "직접 입력":
+    if st.button(f"🔍 '{selected_job}'의 '{selected_situation}' 도구 추천받기"):
+        # 버튼을 누르면 AI에게 보낼 질문을 자동으로 생성
+        auto_prompt = f"나는 '{selected_job}' 직무를 맡고 있어. 현재 '{selected_situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
+        
+        # 사용자 메시지로 추가
+        st.session_state.messages.append({"role": "user", "content": auto_prompt})
+        st.rerun() # 화면을 새로고침해서 채팅창에 반영
+
+# -------------------------------------------------------
+# 기본 채팅 입력창 (직접 타이핑)
+# -------------------------------------------------------
+if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
     
     # 사용자 메시지 표시
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # AI 답변 생성
+    # AI 답변 생성 과정
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
         try:
-            # 대화 기록(Context) 구성
+            # 대화 기록 구성
             chat_history = [
                 {"role": m["role"], "parts": [m["content"]]} 
                 for m in st.session_state.messages 
-                if m["role"] != "system" # 시스템 메시지 제외
+                if m["role"] != "system"
             ]
             
             # AI에게 질문
@@ -180,13 +205,6 @@ if prompt := st.chat_input("예: 개발자인데 코드짜는 거 도와주는 �
             # 답변 저장
             st.session_state.messages.append({"role": "assistant", "content": response.text})
             
-            # 만족도 피드백 UI (기능 흉내)
-            col1, col2, col3 = st.columns([1, 1, 8])
-            with col1:
-                st.button("👍 도움됨", key=f"up_{len(st.session_state.messages)}")
-            with col2:
-                st.button("👎 별로임", key=f"down_{len(st.session_state.messages)}")
-
         except Exception as e:
             message_placeholder.error("죄송합니다. 잠시 오류가 발생했습니다.")
             st.error(f"상세 에러: {e}")

@@ -7,7 +7,9 @@ import json
 # ==========================================
 # 1. 기본 설정 및 데이터 로드
 # ==========================================
-st.set_page_config(page_title="Job-Fit AI 도구 추천", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Job-Fit AI 도구 추천",
+                   page_icon="🤖",
+                   layout="wide")
 
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
@@ -22,9 +24,25 @@ CSV_FILE_PATH = 'ai_tools.csv'
 # 데이터 로드 함수 (비추천수 컬럼 관리 포함)
 @st.cache_data
 def load_data():
+    target_file = CSV_FILE_PATH
+    found_path = None
+
     if not os.path.exists(CSV_FILE_PATH):
         return None
-
+    try:
+        # 옵션 설명: 
+        # encoding='utf-8-sig': 엑셀로 저장한 CSV의 깨짐 방지 (BOM 처리)
+        # on_bad_lines='skip': 칸 수가 안 맞는 불량 행은 쿨하게 패스
+        df = pd.read_csv(found_path, encoding='utf-8-sig', on_bad_lines='skip')
+        return df
+    except Exception as e_utf8:
+        # 혹시 UTF-8이 아니라고 할까봐 CP949도 대비
+        try:
+            df = pd.read_csv(found_path, encoding='cp949', on_bad_lines='skip')
+            return df
+        except Exception as e_final:
+            st.error(f"❌ 읽기 실패. 파일 내용이나 인코딩을 확인해주세요.")
+            st.error(f"상세 에러: {e_final}")
     try:
         df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
         
@@ -56,7 +74,7 @@ def extract_and_update_csv(action_type, user_text, ai_text):
     """
     try:
         # 1. AI를 이용해 대화 내용에서 '도구 이름'과 '정보' 추출
-        extractor_model = genai.GenerativeModel('gemini-1.5-flash')
+        extractor_model = genai.GenerativeModel('gemini-2.5-Pro')
         
         extraction_prompt = f"""
         너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON으로 줘.
@@ -146,25 +164,34 @@ def extract_and_update_csv(action_type, user_text, ai_text):
 with st.sidebar:
     st.title("🎛️ 추천 옵션")
     
+    # [새로운 기능] CSV 기반 직무/상황 선택 기능
     selected_job = "직접 입력"
     selected_situation = "직접 입력"
     
     if df_tools is not None:
+        # 1. 직무 목록 추출 (중복 제거 및 정렬)
         job_list = sorted(df_tools['직무'].unique().tolist())
+        # '직접 입력' 옵션을 맨 앞에 추가
         selected_job = st.selectbox("직무를 선택하세요", ["직접 입력"] + job_list)
         
+        # 2. 선택한 직무에 맞는 상황 목록만 필터링
         if selected_job != "직접 입력":
+            # 해당 직무의 상황 데이터만 가져오기
             situation_list = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].unique().tolist())
             selected_situation = st.selectbox("어떤 상황인가요?", ["직접 입력"] + situation_list)
     
     st.divider()
     
+    # 결과물 양식 선택 (기존 유지)
     output_format = st.multiselect(
         "필요한 결과물 양식",
         ["보고서(텍스트)", "PPT(발표자료)", "이미지", "영상", "표(Excel)", "요약본"],
         default=[]
     )
     
+    st.info("💡 팁: 직무와 상황을 선택하고 '자동 질문 생성' 버튼을 누르면 편합니다.")
+    
+    # 대화 초기화 버튼
     if st.button("🗑️ 대화 내용 초기화"):
         st.session_state.messages = []
         st.rerun()
@@ -195,13 +222,15 @@ sys_instruction = f"""
 """
 
 # Gemini 1.5 Pro 사용 (2.5는 아직 비공개 모델일 수 있어 1.5로 설정)
-model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=sys_instruction)
+model = genai.GenerativeModel('gemini-2.5-pro', system_instruction=sys_instruction)
 
 # ==========================================
 # 5. 메인 채팅 인터페이스
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
+st.caption("당신의 업무 상황을 말해주세요. 최적의 AI 도구를 찾아드립니다.")
 
+# 대화 기록 초기화
 if "messages" not in st.session_state:
     st.session_state.messages = []
 

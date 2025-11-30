@@ -46,27 +46,30 @@ def load_data():
 df_tools = load_data()
 
 # ==========================================
-# 2. AI 정보 추출 및 CSV 업데이트 로직
+# 2. 도구 정보 추출 및 CSV 업데이트 로직
 # ==========================================
-def extract_and_update_csv(action_type, user_text, ai_text):
+def parse_tools_from_text(user_text, ai_text):
+    """
+    AI 답변에서 도구 목록을 추출하여 리스트로 반환 (버튼 생성용)
+    """
     try:
         extractor_model = genai.GenerativeModel('gemini-2.5-flash')
         
         extraction_prompt = f"""
-        너는 데이터 추출기야. 아래 대화를 분석해서 정보를 JSON 리스트로 줘.
+        아래 대화에서 AI가 추천한 **AI 도구 이름**들을 모두 찾아서 JSON 리스트로 줘.
         
         [대화]
         Q: {user_text}
         A: {ai_text}
         
         [요청사항]
-        1. AI 답변에서 추천한 **모든** 핵심 '추천도구'(이름)을 찾아줘.
-        2. action이 'like'라면, 각 도구별로 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크 정보도 추출해.
+        1. 도구 이름, 직무, 상황, 결과물, 특징_및_팁, 유료여부, 링크를 추출해.
+        2. 직무/상황 등은 질문과 답변을 보고 추론해.
         
         출력 포맷(JSON List):
         [
             {{
-                "추천도구": "도구A",
+                "추천도구": "도구명",
                 "직무": "...",
                 "상황": "...",
                 "결과물": "...",
@@ -75,16 +78,21 @@ def extract_and_update_csv(action_type, user_text, ai_text):
                 "링크": "..."
             }}
         ]
-        오직 JSON List만 출력해.
         """
-        
         result = extractor_model.generate_content(extraction_prompt)
         cleaned_json = result.text.replace("```json", "").replace("```", "").strip()
-        
-        tools_data_list = json.loads(cleaned_json)
-        if isinstance(tools_data_list, dict):
-            tools_data_list = [tools_data_list]
+        tools_list = json.loads(cleaned_json)
+        if isinstance(tools_list, dict):
+            tools_list = [tools_list]
+        return tools_list
+    except:
+        return []
 
+def update_csv_single_tool(action_type, tool_data):
+    """
+    개별 도구(tool_data) 하나를 CSV에 업데이트
+    """
+    try:
         if os.path.exists(CSV_FILE_PATH):
             df = pd.read_csv(CSV_FILE_PATH, encoding='utf-8-sig', on_bad_lines='skip')
         else:
@@ -93,46 +101,41 @@ def extract_and_update_csv(action_type, user_text, ai_text):
         if '비추천수' not in df.columns:
             df['비추천수'] = 0
 
-        result_messages = []
-        has_change = False
+        target_tool = tool_data.get('추천도구')
+        if not target_tool: return False, "도구명이 없습니다."
 
-        for data_dict in tools_data_list:
-            target_tool = data_dict.get('추천도구')
-            if not target_tool: continue
+        # CASE 1: 👍 좋아요
+        if action_type == 'like':
+            if target_tool in df['추천도구'].values:
+                return False, f"⚠️ '{target_tool}'은(는) 이미 있습니다."
+            else:
+                tool_data['비추천수'] = 0
+                new_row = pd.DataFrame([tool_data])
+                df = pd.concat([df, new_row], ignore_index=True)
+                df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
+                return True, f"✅ '{target_tool}' 저장 완료!"
 
-            if action_type == 'like':
-                if target_tool in df['추천도구'].values:
-                    result_messages.append(f"⚠️ '{target_tool}'(중복)")
+        # CASE 2: 👎 싫어요
+        elif action_type == 'dislike':
+            if target_tool not in df['추천도구'].values:
+                return False, f"❓ '{target_tool}'(DB에 없음)"
+            else:
+                idx = df[df['추천도구'] == target_tool].index
+                df.loc[idx, '비추천수'] += 1
+                current = df.loc[idx, '비추천수'].values[0]
+                
+                msg = ""
+                if current >= 3:
+                    df = df.drop(idx)
+                    msg = f"🗑️ '{target_tool}' 삭제됨 (3회 누적)"
                 else:
-                    data_dict['비추천수'] = 0
-                    new_row = pd.DataFrame([data_dict])
-                    df = pd.concat([df, new_row], ignore_index=True)
-                    result_messages.append(f"✅ '{target_tool}'")
-                    has_change = True
-
-            elif action_type == 'dislike':
-                if target_tool not in df['추천도구'].values:
-                    result_messages.append(f"❓ '{target_tool}'(없음)")
-                else:
-                    idx = df[df['추천도구'] == target_tool].index
-                    df.loc[idx, '비추천수'] += 1
-                    current_dislikes = df.loc[idx, '비추천수'].values[0]
-                    
-                    if current_dislikes >= 3:
-                        df = df.drop(idx)
-                        result_messages.append(f"🗑️ '{target_tool}' 삭제")
-                    else:
-                        result_messages.append(f"📉 '{target_tool}'({current_dislikes}/3)")
-                    has_change = True
-
-        if has_change:
-            df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
-            
-        final_msg = ", ".join(result_messages)
-        return True, final_msg
-
+                    msg = f"📉 '{target_tool}' 비추천 ({current}/3)"
+                
+                df.to_csv(CSV_FILE_PATH, index=False, encoding='utf-8-sig')
+                return True, msg
+                
     except Exception as e:
-        return False, f"오류 발생: {str(e)}"
+        return False, f"오류: {str(e)}"
 
 # ==========================================
 # 3. 사이드바 (UI)
@@ -204,6 +207,7 @@ sys_instruction = f"""
 {csv_context}
 """
 
+# 무료 사용량이 넉넉한 Flash 모델 사용 (Pro는 50회 제한으로 에러 가능성 높음)
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_instruction)
 
 # ==========================================
@@ -224,7 +228,7 @@ welcome_msg = """
    * "회의록 정리가 너무 귀찮은데 도와줄 AI 추천해 줘!"
 
 마음에 드는 추천에는 **따봉(👍)**을 눌러주시면 제가 꼭 기억해 둘게요!
-(도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
+(도움이 되셨다면 [GitHub](https://github.com/Timber-Fit/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
 """
 st.markdown(welcome_msg)
 
@@ -236,103 +240,105 @@ for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
         
+        # AI 답변 아래에만 '도구 관리' 버튼 표시
         if message["role"] == "assistant":
-            col_a, col_b, col_empty = st.columns([1, 1, 8])
-            btn_key_like = f"like_{i}"
-            btn_key_dislike = f"dislike_{i}"
+            # 이 메시지에 'extracted_tools'가 저장되어 있는지 확인
+            tools_key = f"tools_{i}"
             
-            with col_a:
-                if st.button("👍 추천", key=btn_key_like, help="이 도구를 CSV에 자동 추가"):
-                    if i > 0:
-                        user_query = st.session_state.messages[i-1]["content"]
-                        ai_answer = message["content"]
-                        with st.spinner("💾 학습 중..."):
-                            success, msg = extract_and_update_csv('like', user_query, ai_answer)
-                            if success:
-                                st.toast(msg, icon="🎉")
-                                st.cache_data.clear() # 캐시 비우기
-                                st.rerun() # [핵심 수정] 즉시 화면 새로고침해서 사이드바 업데이트!
-                            else:
-                                st.error(msg)
-                    else:
-                        st.warning("저장할 이전 질문이 없습니다.")
-
-            with col_b:
-                if st.button("👎 별로", key=btn_key_dislike, help="3회 누적 시 삭제"):
-                    if i > 0:
-                        user_query = st.session_state.messages[i-1]["content"]
-                        ai_answer = message["content"]
-                        with st.spinner("처리 중..."):
-                            success, msg = extract_and_update_csv('dislike', user_query, ai_answer)
-                            if success:
+            # [Step 1] 아직 분석 안 된 상태면 '분석 버튼' 보여주기
+            if tools_key not in st.session_state:
+                if st.button("🛠️ 이 답변의 도구 저장/비추천 관리하기", key=f"analyze_{i}"):
+                    with st.spinner("답변에서 도구 정보를 추출하는 중..."):
+                        # 이전 사용자 질문 가져오기
+                        user_query = st.session_state.messages[i-1]["content"] if i > 0 else ""
+                        ai_text = message["content"]
+                        
+                        # API 호출해서 도구 리스트 뽑기
+                        tools_found = parse_tools_from_text(user_query, ai_text)
+                        
+                        if tools_found:
+                            st.session_state[tools_key] = tools_found
+                            st.rerun() # 화면 갱신해서 목록 보여주기
+                        else:
+                            st.error("추출된 도구가 없습니다.")
+            
+            # [Step 2] 분석된 도구가 있으면 -> 개별 버튼 뿌리기
+            else:
+                tools_list = st.session_state[tools_key]
+                st.caption(f"💡 {len(tools_list)}개의 도구를 찾았습니다. 개별적으로 저장하거나 비추천할 수 있습니다.")
+                
+                for tool in tools_list:
+                    t_name = tool['추천도구']
+                    
+                    # 카드 형태로 보여주기 (컬럼 사용)
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    with c1:
+                        st.markdown(f"**🔧 {t_name}**")
+                    with c2:
+                        if st.button("👍저장", key=f"save_{i}_{t_name}"):
+                            success, msg = update_csv_single_tool('like', tool)
+                            if success: 
+                                st.toast(msg, icon="✅")
+                                st.cache_data.clear()
+                                st.rerun()
+                            else: st.toast(msg, icon="⚠️")
+                    with c3:
+                        if st.button("👎비추", key=f"del_{i}_{t_name}"):
+                            success, msg = update_csv_single_tool('dislike', tool)
+                            if success: 
                                 st.toast(msg, icon="📉")
-                                st.cache_data.clear() # 캐시 비우기
-                                st.rerun() # [핵심 수정] 즉시 화면 새로고침
-                            else:
-                                st.error(msg)
-                    else:
-                        st.warning("처리할 질문이 없습니다.")
+                                st.cache_data.clear()
+                                st.rerun()
+                            else: st.toast(msg, icon="⚠️")
 
-# [콜백 함수] 사이드바 초기화 및 대화 이어가기
+# [콜백 함수] 사이드바 초기화
 def handle_quick_recommendation(job, situation):
     auto_prompt = f"나는 '{job}' 직무를 맡고 있어. 현재 '{situation}' 업무를 해야 하는데 적합한 AI 도구를 추천해줘."
     st.session_state.messages.append({"role": "user", "content": auto_prompt})
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
 
-# [콜백 함수] 완전히 새로운 대화 시작 (화면 비우기)
 def reset_conversation():
     st.session_state.messages = []
     st.session_state["sb_job"] = "직접 입력"
     st.session_state["sb_situation"] = "직접 입력"
+    # 도구 분석 캐시도 날리기 위해 keys 확인
+    keys_to_del = [k for k in st.session_state.keys() if k.startswith("tools_")]
+    for k in keys_to_del:
+        del st.session_state[k]
 
-# ------------------------------------------------------------------
 # 버튼 영역
-# ------------------------------------------------------------------
 col1, col2 = st.columns([8, 2])
-
 with col2:
     st.button("🔄 새로운 대화 시작", on_click=reset_conversation, use_container_width=True)
-
 with col1:
     if selected_job != "직접 입력" and selected_situation != "직접 입력":
         btn_label = f"🔍 '{selected_job}' - '{selected_situation}' 추천받기"
         st.button(btn_label, type="primary", on_click=handle_quick_recommendation, args=(selected_job, selected_situation), use_container_width=True)
 
-# ------------------------------------------------------------------
-# 직접 질문 입력
-# ------------------------------------------------------------------
-if prompt := st.chat_input("직접 질문하기 (예: 무료로 쓸 수 있는 PPT 도구 있어?)"):
+# 직접 질문
+if prompt := st.chat_input("질문하기..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.rerun()
 
-# ------------------------------------------------------------------
-# AI 답변 생성 로직
-# ------------------------------------------------------------------
+# AI 답변 생성
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        with st.spinner("AI가 생각 중입니다..."):
+        msg_placeholder = st.empty()
+        with st.spinner("생각 중..."):
             try:
-                full_history = [m for m in st.session_state.messages if m["role"] != "system"]
-                past_history = full_history[:-1]
+                # [핵심 수정] Gemini History 형식에 맞게 변환 (user/model)
+                gemini_history = []
+                for m in st.session_state.messages[:-1]: # 마지막 질문 제외
+                    role = "user" if m["role"] == "user" else "model"
+                    gemini_history.append({"role": role, "parts": [m["content"]]})
                 
-                valid_history = []
-                if past_history:
-                    if past_history[-1]["role"] == "user":
-                        valid_history = [] 
-                    else:
-                        valid_history = [{"role": m["role"], "parts": [m["content"]]} for m in past_history]
-
-                chat = model.start_chat(history=valid_history)
+                chat = model.start_chat(history=gemini_history)
                 response = chat.send_message(st.session_state.messages[-1]["content"])
                 
-                message_placeholder.markdown(response.text)
+                msg_placeholder.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
                 st.rerun()
-                
             except Exception as e:
-                message_placeholder.error(f"오류가 발생했습니다. 다시 시도해 주세요. (Error: {e})")
-                if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-                     st.session_state.messages.pop()
-                st.rerun() # 버튼 생성을 위해 새로고침
+                msg_placeholder.error(f"오류: {e}")
+                st.session_state.messages.pop() 

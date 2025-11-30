@@ -210,7 +210,7 @@ welcome_msg = """
 (도움이 되셨다면 [GitHub](https://github.com/Timber-Kim/Job-Fit-AI-Navigator)에서 **Star(⭐)**도 부탁드려요!)
 """
 
-st.markdown(welcome_msg)
+st.caption(welcome_msg)
 
 # 대화 기록 초기화
 if "messages" not in st.session_state:

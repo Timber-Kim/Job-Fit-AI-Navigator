@@ -118,7 +118,13 @@ CSV Database (Google Spreadsheet)
 ## 🤝 기여하기 (Contribution)
 여러분이 알고 있는 '꿀팁' AI 도구가 있다면 제보해 주세요!
 1. 이 저장소를 **Star(⭐️)** 눌러주세요.
-2. `Issues` 탭에 새로운 도구를 제안하거나, `Pull Request`를 보내주세요.
+2. `Issues` 탭에 새로운 AI 도구 제안하거나, `Pull Request`를 보내주세요.
+
+
+
+“AI를 잘 쓰는 사람”보다,
+“AI를 잘 골라 쓰는 사람”이 경쟁력이 되는 시대.
+**Job-Fit AI Navigator**가 그 사이를 이어주는 브릿지가 되겠습니다.
 
 ---
 Created by [2025-2 인간-인공지능협업제품서비스설계 / 3팀]

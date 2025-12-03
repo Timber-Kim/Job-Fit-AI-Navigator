@@ -47,7 +47,7 @@ AI 메타 라우터(Meta AI) 를 목표로 합니다.
 우리는 AI를 분류·큐레이션·필터링해주는 AI 메타 추천 플랫폼을 설계했고,
 그 결과가 바로 **Job-Fit AI Navigator**입니다.
 
-
+<br>
 
 We live in a world where new AI tools drop every single day.
 

@@ -217,6 +217,7 @@ CSV Database (Google Spreadsheet)
 
 “AI를 잘 쓰는 사람”보다,
 “AI를 잘 골라 쓰는 사람”이 경쟁력이 되는 시대.
+
 **Job-Fit AI Navigator**가 그 사이를 이어주는 브릿지가 되겠습니다.
 
 ---

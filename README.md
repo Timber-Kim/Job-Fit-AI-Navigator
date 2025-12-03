@@ -77,18 +77,24 @@ And that became Job-Fit AI Navigator.
 <br>
 
 ## 🚀 주요 기능 (Features)
-- **직무별 큐레이션**: 마케터, 개발자, 기획자, 디자이너 등 직군별 최적화된 AI를 분류합니다.
+- **직무별 큐레이션 / Job-Based Curation**: 마케터, 개발자, 기획자, 디자이너 등 직군별 최적화된 AI를 분류합니다.
+  > We classify AI tools optimized for marketers, developers, PMs, designers, HR, and more.
   
-- **상황별 매칭**: 리서치, 브레인스토밍, 보고서 작성, 디자인 생성, PPT 제작 등 “지금 이 상황”에 최적화된 AI를 자동 추천합니다.
+- **상황별 매칭 / Situation-Based Matching**: 리서치, 브레인스토밍, 보고서 작성, 디자인 생성, PPT 제작 등 “지금 이 상황”에 최적화된 AI를 자동 추천합니다.
+  > Research, brainstorming, drafting, design, PPT creation — we match the AI that fits your current task.
   
-- **워크플로우 레시피 제공**: 단일 AI 추천을 넘어, 여러 AI를 조합해 “최적의 AI 조합(Recipe)”을 제시합니다.
+- **워크플로우 레시피 제공 / Workflow Recipes**: 단일 AI 추천을 넘어, 여러 AI를 조합해 “최적의 AI 조합(Recipe)”을 제시합니다.
   ex) Perplexity → 해외 리서치, Claude → 보고서 초안, Gamma → PPT 자동 생성
+  > We provide multi-AI workflows for complete tasks.
+  ex) Perplexity → Research → Claude → Draft → Gamma → PPT
   
-- **CSV 기반 추천 엔진 고도화** : 내부 DB를 기반으로 AI 정보를 관리합니다.
+- **CSV 기반 추천 엔진 고도화 / CSV-Based Recommendation Engine** : 내부 DB를 기반으로 AI 정보를 관리합니다.
   새로운 AI 도구는 DB에 자동 추가되며, 적합하지 않은 도구는 비추천 기능을 통해 자동으로 제외됩니다.
+  > A structured internal CSV database manages all AI info. New tools are added automatically; low-quality tools can be filtered out via feedback.
   
-- **사용자 피드백 기반 자동 학습** : 👎 비추천 3회 → CSV DB에서 해당 AI 자동 삭제, 👍 새로운 AI 도구 입력 후 추천 → CSV DB에 자동 추가
+- **사용자 피드백 기반 자동 학습 / Feedback-Based Auto-Learning** : 👎 비추천 3회 → CSV DB에서 해당 AI 자동 삭제, 👍 새로운 AI 도구 입력 후 추천 → CSV DB에 자동 추가
   사용할수록 추천 품질이 좋아지는 구조입니다.
+  >👎 3 downvotes → tool removed 👍 User-added tools → auto-added to the DB
 
 <br>
 <br>

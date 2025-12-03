@@ -102,11 +102,17 @@ And that became Job-Fit AI Navigator.
 ## ⚙️ How It Works
 <img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
 
+<br>
+
 🔍 1. 사용자 입력
 
 자유롭게 텍스트로 입력하면 됩니다.
 
 예: “나는 마케팅팀인데 이번 주 안에 광고 이미지랑 카피를 만들어야 해.”
+
+> Just describe your task naturally. (Example: “I’m on the marketing team and need to create ad images and copy.”)
+
+<br>
 
 🧠 2. LLM이 입력을 구조화
 
@@ -116,10 +122,19 @@ Situation: 콘텐츠 제작
 
 Output: 이미지 + 카피
 
+>LLM classifies your input into Job, Situation, and Output.
+
+
+<br>
+
 🔎 3. CSV DB에서 필터링
 
 직무 + 상황 + 결과물 기준으로
 해당 상황에 맞는 AI 도구만 추출.
+
+> We filter tools using the Job × Situation × Output structure.
+
+<br>
 
 🧩 4. 우선순위 스코어링
 
@@ -132,12 +147,18 @@ Output: 이미지 + 카피
 속도
 이 요소를 기준으로 적합도 점수를 계산.
 
+> We score tools based on reliability, complexity, speed, and price.
+
+<br>
+
 🔁 5. 사용자 피드백 반영
 
 비추천 3회 → 자동 제거
 
 추천된 새 도구 → 자동 추가
 → 시간이 지날수록 더 똑똑해지는 추천 엔진 완성.
+
+> The more it's used, the smarter the system becomes.
 
 <br>
 <br>

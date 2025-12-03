@@ -48,6 +48,24 @@ AI 메타 라우터(Meta AI) 를 목표로 합니다.
 그 결과가 바로 **Job-Fit AI Navigator**입니다.
 
 
+We live in a world where new AI tools drop every single day.
+
+But strangely, most people say things like:
+
+> “Too many AIs… which one am I supposed to use?”
+> “I have no idea which AI fits my work.”
+> “I spend more time comparing tools than actually working.”
+
+So the problem isn’t that good AIs don’t exist — it’s that there are way too many of them.
+
+And that’s why we started this project.
+
+>We asked:
+“Can’t I just get the right AI for my situation without drowning in search tabs?”
+
+From that question, we built an AI meta-recommendation platform that organizes, filters, and curates tools for you.
+And that became Job-Fit AI Navigator.
+
 
 ## 🚀 주요 기능 (Features)
 - **직무별 큐레이션**: 마케터, 개발자, 기획자, 디자이너 등 직군별 최적화된 AI를 분류합니다.

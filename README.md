@@ -103,6 +103,7 @@ And that became Job-Fit AI Navigator.
 <img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
 
 <br>
+<br>
 
 🔍 1. 사용자 입력
 

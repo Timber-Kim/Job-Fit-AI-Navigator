@@ -163,6 +163,7 @@ Output: 이미지 + 카피
 <br>
 <br>
 
+
 ## 📂 추천 목록 예시 (Preview)
 
 | 상황 (Situation) | 추천 도구 (Tool) | 활용 팁 (Tip) |
@@ -172,6 +173,7 @@ Output: 이미지 + 카피
 | **발표용 PPT 생성** | **Gamma** | 텍스트 개요만 넣으면 디자인된 슬라이드를 자동 생성합니다. |
 
 *실제 추천 결과는 사용자 입력과 DB, 그리고 누적된 피드백에 따라 달라집니다.*
+> Actual results depend on user input and the database.
 
 <br>
 <br>
@@ -181,7 +183,7 @@ Output: 이미지 + 카피
 CSV Database (Google Spreadsheet)
 👉 https://docs.google.com/spreadsheets/d/176EoAIiDYnDiD9hORKABr_juIgRZZss5ApTqdaRCx5E/edit?gid=0#gid=0
 
-웹 데모 (Streamlit)
+웹 데모 (Streamlit Web Demo)
 👉 https://job-fit-ai-navigator-dfpc8ttxmdtugtappucmjyb.streamlit.app/#job-fit-ai
 
 <br>
@@ -189,6 +191,8 @@ CSV Database (Google Spreadsheet)
 
 ## 🛠️ 향후 로드맵 (Roadmap)
 이 프로젝트는 단순 리스트업을 넘어, Python 기반의 추천 알고리즘을 도입할 예정입니다.
+>This project will evolve from a simple list into a full AI recommendation engine.
+<br>
 - [x] 초기 데이터셋 구축 (엑셀/CSV)
 - [ ] 사용자 입력 기반 추천 알고리즘 (Rule-based) 구현
 - [ ] LLM 기반 자연어 의도 파악 및 툴 추천 챗봇 개발
@@ -199,8 +203,10 @@ CSV Database (Google Spreadsheet)
 
 ## 🤝 기여하기 (Contribution)
 여러분이 알고 있는 '꿀팁' AI 도구가 있다면 제보해 주세요!
-1. 이 저장소를 **Star(⭐️)** 눌러주세요.
-2. `Issues` 탭에 새로운 AI 도구 제안하거나, `Pull Request`를 보내주세요.
+>If you know a hidden-gem AI tool, tell us!
+<br>
+1. 이 저장소를 **Star(⭐️)** 눌러주세요. / Please Star (⭐️) this repository.
+2. `Issues` 탭에 새로운 AI 도구 제안하거나, `Pull Request`를 보내주세요. / Suggest tools via the Issues tab or Pull Requests are welcome!
 
 
 

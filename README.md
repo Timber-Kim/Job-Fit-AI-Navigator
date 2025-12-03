@@ -193,7 +193,9 @@ CSV Database (Google Spreadsheet)
 ## 🛠️ 향후 로드맵 (Roadmap)
 이 프로젝트는 단순 리스트업을 넘어, Python 기반의 추천 알고리즘을 도입할 예정입니다.
 >This project will evolve from a simple list into a full AI recommendation engine.
+
 <br>
+
 - [x] 초기 데이터셋 구축 (엑셀/CSV)
 - [ ] 사용자 입력 기반 추천 알고리즘 (Rule-based) 구현
 - [ ] LLM 기반 자연어 의도 파악 및 툴 추천 챗봇 개발
@@ -205,7 +207,9 @@ CSV Database (Google Spreadsheet)
 ## 🤝 기여하기 (Contribution)
 여러분이 알고 있는 '꿀팁' AI 도구가 있다면 제보해 주세요!
 >If you know a hidden-gem AI tool, tell us!
+
 <br>
+
 1. 이 저장소를 **Star(⭐️)** 눌러주세요. / Please Star (⭐️) this repository.
 2. `Issues` 탭에 새로운 AI 도구 제안하거나, `Pull Request`를 보내주세요. / Suggest tools via the Issues tab or Pull Requests are welcome!
 

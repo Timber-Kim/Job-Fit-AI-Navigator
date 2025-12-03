@@ -18,7 +18,9 @@ AI 메타 라우터(Meta AI) 를 목표로 합니다.
 실무자가 실제로 맞닥뜨리는 구체적인 페인 포인트를 해결하는 솔루션입니다.
 
 Job-Fit AI Navigator is a meta AI service that automatically recommends the most suitable AI tools for each user from the overwhelming number of AI services.
+
 Our goal is to act as a Meta AI Router, intelligently matching users to the best tool based on Job × Situation × Output.
+
 This project is not just a list of trending AI tools — it solves real, practical pain points that professionals encounter.
 
 ## 🌊 Why We Started

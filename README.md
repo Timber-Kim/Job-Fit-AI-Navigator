@@ -9,20 +9,21 @@
 **Job-Fit AI Navigator**는 수많은 AI 서비스 속에서
 사용자에게 가장 잘 맞는 최적의 AI 도구를 자동으로 추천하는 메타 AI 서비스입니다.
 
+>Job-Fit AI Navigator is a meta AI service that automatically recommends the most suitable AI tools for each user from the overwhelming number of AI services.
+
 
 쏟아지는 AI 서비스 홍수 속에서,
 이미 존재하는 다양한 AI 도구들을 직무(Job) × 상황(Situation) × 결과물(Output) 기준으로 연결해 주는
 AI 메타 라우터(Meta AI) 를 목표로 합니다.
 
+>Our goal is to act as a Meta AI Router, intelligently matching users to the best tool based on Job × Situation × Output.
+
+
 이 프로젝트는 단순한 “인기있는 AI 리스트”가 아니라,
 실무자가 실제로 맞닥뜨리는 구체적인 페인 포인트를 해결하는 솔루션입니다.
 
-
->Job-Fit AI Navigator is a meta AI service that automatically recommends the most suitable AI tools for each user from the overwhelming number of AI services.
-
->Our goal is to act as a Meta AI Router, intelligently matching users to the best tool based on Job × Situation × Output.
-
 >This project is not just a list of trending AI tools — it solves real, practical pain points that professionals encounter.
+
 
 
 ## 🌊 Why We Started
@@ -47,6 +48,7 @@ AI 메타 라우터(Meta AI) 를 목표로 합니다.
 그 결과가 바로 **Job-Fit AI Navigator**입니다.
 
 
+
 ## 🚀 주요 기능 (Features)
 - **직무별 큐레이션**: 마케터, 개발자, 기획자, 디자이너 등 직군별 최적화된 AI를 분류합니다.
   
@@ -60,6 +62,7 @@ AI 메타 라우터(Meta AI) 를 목표로 합니다.
   
 - **사용자 피드백 기반 자동 학습** : 👎 비추천 3회 → CSV DB에서 해당 AI 자동 삭제, 👍 새로운 AI 도구 입력 후 추천 → CSV DB에 자동 추가
   사용할수록 추천 품질이 좋아지는 구조입니다.
+
 
 ## ⚙️ How It Works
 <img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
@@ -101,6 +104,7 @@ Output: 이미지 + 카피
 추천된 새 도구 → 자동 추가
 → 시간이 지날수록 더 똑똑해지는 추천 엔진 완성.
 
+
 ## 📂 추천 목록 예시 (Preview)
 
 | 상황 (Situation) | 추천 도구 (Tool) | 활용 팁 (Tip) |
@@ -111,6 +115,8 @@ Output: 이미지 + 카피
 
 *실제 추천 결과는 사용자 입력과 DB, 그리고 누적된 피드백에 따라 달라집니다.*
 
+
+
 ## 🗂️ Database & Web Demo
 
 CSV Database (Google Spreadsheet)
@@ -119,12 +125,16 @@ CSV Database (Google Spreadsheet)
 웹 데모 (Streamlit)
 👉 https://job-fit-ai-navigator-dfpc8ttxmdtugtappucmjyb.streamlit.app/#job-fit-ai
 
+
+
 ## 🛠️ 향후 로드맵 (Roadmap)
 이 프로젝트는 단순 리스트업을 넘어, Python 기반의 추천 알고리즘을 도입할 예정입니다.
 - [x] 초기 데이터셋 구축 (엑셀/CSV)
 - [ ] 사용자 입력 기반 추천 알고리즘 (Rule-based) 구현
 - [ ] LLM 기반 자연어 의도 파악 및 툴 추천 챗봇 개발
 - [ ] 웹 데모 페이지 (Streamlit) 배포
+
+
 
 ## 🤝 기여하기 (Contribution)
 여러분이 알고 있는 '꿀팁' AI 도구가 있다면 제보해 주세요!

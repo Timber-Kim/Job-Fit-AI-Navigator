@@ -2,6 +2,7 @@
 
 > **어떤 AI를 써야 할지 모르겠다면?
 직무와 상황만 알려주세요. 최적의 AI를 바로 찾아드립니다.**
+
 > If you're not sure which AI tool to use, just tell us your job and situation — we'll recommend the perfect one instantly.
 
 ## 📖 프로젝트 소개 (About)

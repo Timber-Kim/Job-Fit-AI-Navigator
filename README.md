@@ -9,17 +9,16 @@ If you're not sure which AI tool to use, just tell us your job and situation —
 **Job-Fit AI Navigator**는 수많은 AI 서비스 속에서
 사용자에게 가장 잘 맞는 최적의 AI 도구를 자동으로 추천하는 메타 AI 서비스입니다.
 
-Job-Fit AI Navigator is a meta AI service that automatically recommends the most suitable AI tools for each user from the overwhelming number of AI services.
 
 쏟아지는 AI 서비스 홍수 속에서,
 이미 존재하는 다양한 AI 도구들을 직무(Job) × 상황(Situation) × 결과물(Output) 기준으로 연결해 주는
 AI 메타 라우터(Meta AI) 를 목표로 합니다.
 
-Our goal is to act as a Meta AI Router, intelligently matching users to the best tool based on Job × Situation × Output.
-
 이 프로젝트는 단순한 “인기있는 AI 리스트”가 아니라,
 실무자가 실제로 맞닥뜨리는 구체적인 페인 포인트를 해결하는 솔루션입니다.
 
+Job-Fit AI Navigator is a meta AI service that automatically recommends the most suitable AI tools for each user from the overwhelming number of AI services.
+Our goal is to act as a Meta AI Router, intelligently matching users to the best tool based on Job × Situation × Output.
 This project is not just a list of trending AI tools — it solves real, practical pain points that professionals encounter.
 
 ## 🌊 Why We Started

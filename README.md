@@ -193,7 +193,7 @@ CSV Database (Google Spreadsheet)
 
 ## 🛠️ Next Level : Project Vision
 
-Job-Fit AI Navigator는 단순한 큐레이션을 넘어, 사용자 피드백을 통해 스스로 진화하고 AI 도구를 직접 실행하는 **'완전형 메타 AI 에이전트'**를 지향합니다.
+Job-Fit AI Navigator는 단순한 큐레이션을 넘어, 사용자 피드백을 통해 스스로 진화하고 AI 도구를 직접 실행하는 '완전형 메타 AI 에이전트'를 지향합니다.
 <br>
 ### 1. 자가 진화형 DB 및 동적 스코어링 (Self-Evolving DB & Dynamic Scoring)
 > "데이터가 고이면 썩습니다. 우리는 살아 움직이는 AI 생태계를 구축합니다."

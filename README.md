@@ -190,20 +190,31 @@ CSV Database (Google Spreadsheet)
 <br>
 <br>
 
-## 🛠️ 향후 로드맵 (Roadmap)
-이 프로젝트는 단순 리스트업을 넘어, Python 기반의 추천 알고리즘을 도입할 예정입니다.
->This project will evolve from a simple list into a full AI recommendation engine.
 
-<br>
+## 🛠️ Next Level : Project Vision
 
-- [x] 초기 데이터셋 구축 (엑셀/CSV)
-- [ ] 사용자 입력 기반 추천 알고리즘 (Rule-based) 구현
-- [ ] LLM 기반 자연어 의도 파악 및 툴 추천 챗봇 개발
-- [ ] 웹 데모 페이지 (Streamlit) 배포
+Job-Fit AI Navigator는 단순한 큐레이션을 넘어, 사용자 피드백을 통해 스스로 진화하고 AI 도구를 직접 실행하는 **'완전형 메타 AI 에이전트'**를 지향합니다.
 
-<br>
-<br>
+### 1. 자가 진화형 DB 및 동적 스코어링 (Self-Evolving DB & Dynamic Scoring)
+> **"데이터가 고이면 썩습니다. 우리는 살아 움직이는 AI 생태계를 구축합니다."**
 
+단순히 새로운 툴을 쌓아두는 것이 아니라, 데이터의 질(Quality)을 자동으로 관리하는 시스템을 구축합니다.
+* **사용자 피드백 루프 (RLHF 적용):** 사용자의 실제 선택과 평가(Click, Vote)를 가중치로 환산하여, 신뢰도가 높은 툴을 상단에 우선 노출합니다.
+* **스마트 퀄리티 게이트 (Automated Quality Gate):** 크롤링된 신규 AI 툴에 대해 `서버 응답 속도`, `무료 플랜 가용성`, `기능 명세 구체성` 등을 수치화하여 점수를 매깁니다. 기준 점수(Threshold) 미달인 '껍데기 AI'는 DB 진입 단계에서 자동으로 필터링됩니다.
+* **개인화 추천 알고리즘:** 사용자의 과거 조회 이력과 직무(Job) 데이터를 분석해, "다른 마케터들이 이 상황에서 가장 많이 결제한 툴"과 같은 맞춤형 제안을 제공합니다.
+
+### 2. 실행 가능한 메타 인터페이스 (Actionable Meta-Interface)
+> **"추천받고, 이동하고, 가입하고... 귀찮으셨죠? 여기서 바로 실행하세요."**
+
+'추천'에서 끝나는 것이 아니라, Navigator 내부에서 해당 AI의 기능을 즉시 사용할 수 있는 **All-in-One 워크스페이스**로 확장합니다.
+* **API 통합 게이트웨이 (Unified API Gateway):** 주요 AI 툴(GPT, Claude, Midjourney, Perplexity 등)의 API를 연동하여, 사용자가 별도 사이트 이동 없이 Job-Fit Navigator 채팅창에서 바로 결과물을 받아볼 수 있게 합니다.
+* **AI 에이전트 워크플로우 (Agentic Workflow):**
+    ```text
+    User: "이번 프로젝트 기획안 초안 잡고 PPT까지 만들어줘."
+    Navigator: (내부 처리) Perplexity(자료조사) → Claude(초안) → Gamma(PPT)
+    Result: 사용자는 클릭 한 번으로 최종 PPT 파일만 다운로드.
+    ```
+    
 ## 🤝 기여하기 (Contribution)
 여러분이 알고 있는 '꿀팁' AI 도구가 있다면 제보해 주세요!
 >If you know a hidden-gem AI tool, tell us!

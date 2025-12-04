@@ -209,7 +209,7 @@ Job-Fit AI Navigator는 단순한 큐레이션을 넘어, 사용자 피드백을
 '추천'에서 끝나는 것이 아니라, Navigator 내부에서 해당 AI의 기능을 즉시 사용할 수 있는 **All-in-One 워크스페이스**로 확장합니다.<br>
 * **API 통합 게이트웨이 (Unified API Gateway):** 주요 AI 툴(GPT, Claude, Midjourney, Perplexity 등)의 API를 연동하여, 사용자가 별도 사이트 이동 없이 Job-Fit Navigator 채팅창에서 바로 결과물을 받아볼 수 있게 합니다. <br>
 * **AI 에이전트 워크플로우 (Agentic Workflow):**
- <br>
+
     ```text
     User: "이번 프로젝트 기획안 초안 잡고 PPT까지 만들어줘."
     Navigator: (내부 처리) Perplexity(자료조사) → Claude(초안) → Gamma(PPT)

@@ -190,7 +190,7 @@ with st.sidebar:
 
 
 # 메인 화면
-st.title("🚀 Job-Fit AI 네비게이터")
+st.title("🚀 Job-Fit AI 내비게이터")
 
 welcome_msg = """
 👋 **반가워요! 당신의 스마트한 업무 파트너, Job-Fit AI입니다.**

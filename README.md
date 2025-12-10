@@ -107,15 +107,15 @@ And that became Job-Fit AI Navigator.
 
 사용자는 두 가지 방식으로 질문할 수 있으며, 이 과정은 Google Drive DB와 실시간 동기화됩니다.
 
-Users can interact in two ways, synchronized in real-time with Google Drive DB.
+> Users can interact in two ways, synchronized in real-time with Google Drive DB.
 
 - ⚡️ 빠른 메뉴 (Quick Menu via Sidebar):
 
-Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job), 상황(Situation), 결과물(Output) 옵션을 제공합니다.
+> Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job), 상황(Situation), 결과물(Output) 옵션을 제공합니다.
 
 옵션 선택 시, 최적화된 프롬프트가 자동으로 생성되어 대화창에 입력됩니다.
 
-Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
+> Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
 
 - 💬 직접 질문 (Direct Input):
 
@@ -126,7 +126,7 @@ Fetches live data from Google Sheets. Automatically generates optimized prompts 
 
 사용자의 입력값은 Gemini API로 전송됩니다. Gemini는 질문을 분석하여 단순한 도구 이름뿐만 아니라 추천 이유, 잠재적 이슈(Issues), 사용 꿀팁(Pro-tips)을 포함한 종합 답변을 생성합니다.
 
->> Inputs are sent to the Gemini API. It analyzes the context to provide comprehensive answers including Tool Recommendations, Potential Issues, and Usage Tips.
+> Inputs are sent to the Gemini API. It analyzes the context to provide comprehensive answers including Tool Recommendations, Potential Issues, and Usage Tips.
 
 <br>
 
@@ -134,7 +134,7 @@ Fetches live data from Google Sheets. Automatically generates optimized prompts 
 
 이 프로젝트의 핵심 기술입니다. Gemini의 문맥 추출 능력을 활용하여 DB를 자동으로 관리합니다.
 
-Core Feature: Automating DB management utilizing Gemini's context extraction capabilities.
+> Core Feature: Automating DB management utilizing Gemini's context extraction capabilities.
 
  - 👍 도구 관리 및 자동 추가 (Context Extraction & Auto-Add):
 
@@ -144,7 +144,7 @@ Core Feature: Automating DB management utilizing Gemini's context extraction cap
 
 추출된 정보는 **Google Sheet DB에 즉시 추가(Append)**되며, 이는 실시간으로 좌측 '빠른 메뉴'에 반영되어 다른 사용자들에게도 공유됩니다.
 
-Gemini extracts metadata from the chat context and appends it to the Google Sheet, instantly updating the Quick Menu for all users.
+> Gemini extracts metadata from the chat context and appends it to the Google Sheet, instantly updating the Quick Menu for all users.
 
  - 👎 자동 삭제 시스템 (Auto-Deletion via Feedback):
 
@@ -152,7 +152,7 @@ Gemini extracts metadata from the chat context and appends it to the Google Shee
 
 누적 비추천 3회 도달 시, 해당 도구는 품질 미달로 판단되어 Google Sheet DB에서 자동으로 삭제됩니다.
 
-Tools receiving 3 cumulative downvotes are automatically deleted from the DB to maintain quality.
+> Tools receiving 3 cumulative downvotes are automatically deleted from the DB to maintain quality.
 
 
 직무 + 상황 + 결과물 기준으로

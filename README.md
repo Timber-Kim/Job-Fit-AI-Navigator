@@ -102,57 +102,64 @@ And that became Job-Fit AI Navigator.
 ## ⚙️ How It Works
 <img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
 
-
-🔍 1. 듀얼 인풋 인터페이스 (Dual-Input Interface)
-
-사용자는 두 가지 방식으로 질문할 수 있으며, 이 과정은 Google Drive DB와 실시간 동기화됩니다.
-
-- ⚡️ 빠른 메뉴 (Quick Menu via Sidebar):
-
-Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job), 상황(Situation), 결과물(Output) 옵션을 제공합니다.
-
-옵션 선택 시, 최적화된 프롬프트가 자동으로 생성되어 추천 AI 툴이 대화창에 입력됩니다.
-
->Users can interact in two ways, synchronized in real-time with Google Drive DB.
->Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
-
-- 💬 직접 질문 (Direct Input):
-
-사용자가 자유로운 자연어로 질문하면 Gemini가 의도를 파악하여 답변합니다.
+<br>
 <br>
 
-🧠 2. Gemini 기반 추천 엔진 (LLM-Powered Recommendation)
+🔍 1. 사용자 입력
 
-사용자의 입력값은 Gemini API로 전송됩니다. Gemini는 질문을 분석하여 단순한 도구 이름뿐만 아니라 추천 이유, 잠재적 이슈(Issues), 사용 꿀팁(Pro-tips)을 포함한 종합 답변을 생성합니다.
+자유롭게 텍스트로 입력하면 됩니다.
 
-> Inputs are sent to the Gemini API. It analyzes the context to provide comprehensive answers including Tool Recommendations, Potential Issues, and Usage Tips.
+예: “나는 마케팅팀인데 이번 주 안에 광고 이미지랑 카피를 만들어야 해.”
+
+> Just describe your task naturally. (Example: “I’m on the marketing team and need to create ad images and copy.”)
 
 <br>
 
-🔄 3. 자가 진화형 DB 업데이트 (Self-Evolving Database Loop)
+🧠 2. LLM이 입력을 구조화
 
-이 프로젝트의 핵심 기술입니다. Gemini의 문맥 추출 능력을 활용하여 DB를 자동으로 관리합니다.
+Job: 마케터
 
+Situation: 콘텐츠 제작
 
+Output: 이미지 + 카피
 
- - 👍 도구 관리 및 자동 추가 (Context Extraction & Auto-Add):
-
-사용자가 추천 결과에 만족하여 도구 관리(Tool Mgmt) 버튼을 누르면, Gemini가 전체 대화 문맥(Context)을 다시 분석합니다.
-
-비정형 텍스트 대화 속에서 직무, 상황, 결과물, 도구명, 특징, 유료여부, 링크 정보를 JSON 데이터로 추출(Extraction)합니다.
-
-추출된 정보는 Google Sheet DB에 즉시 추가(Append)되며, 이는 실시간으로 좌측 '빠른 메뉴'에 반영되어 다른 사용자들에게도 공유됩니다.
+>LLM classifies your input into Job, Situation, and Output.
 
 
- - 👎 자동 삭제 시스템 (Auto-Deletion via Feedback):
+<br>
 
-사용자가 도구에 대해 비추천을 누르면 카운트가 누적됩니다.
+🔎 3. CSV DB에서 필터링
 
-누적 비추천 3회 도달 시, 해당 도구는 품질 미달로 판단되어 Google Sheet DB에서 자동으로 삭제됩니다.
-> Core Feature: Automating DB management utilizing Gemini's context extraction capabilities.
-> Gemini extracts metadata from the chat context and appends it to the Google Sheet, instantly updating the Quick Menu for all users.
-> Tools receiving 3 cumulative downvotes are automatically deleted from the DB to maintain quality.
+직무 + 상황 + 결과물 기준으로
+해당 상황에 맞는 AI 도구만 추출.
 
+> We filter tools using the Job × Situation × Output structure.
+
+<br>
+
+🧩 4. 우선순위 스코어링
+
+신뢰성
+
+난이도
+
+가격(무료/유료)
+
+속도
+이 요소를 기준으로 적합도 점수를 계산.
+
+> We score tools based on reliability, complexity, speed, and price.
+
+<br>
+
+🔁 5. 사용자 피드백 반영
+
+비추천 3회 → 자동 제거
+
+추천된 새 도구 → 자동 추가
+→ 시간이 지날수록 더 똑똑해지는 추천 엔진 완성.
+
+> The more it's used, the smarter the system becomes.
 
 <br>
 <br>

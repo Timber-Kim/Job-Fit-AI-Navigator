@@ -1,70 +1,51 @@
 ```mermaid
-graph TD
-    %% 스타일 정의
-    classDef startend fill:#f9f,stroke:#333,stroke-width:2px,color:black,rx:15,ry:15
-    classDef process fill:#e1f5fe,stroke:#0277bd,stroke-width:1px,color:black
-    classDef decision fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:black,rhombus
-    classDef db fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 3 3,color:black,cylinder
-    classDef api fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black,rect
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자 (User)
+    participant Web as 🖥️ Streamlit Web
+    participant DB as 📂 Google Drive (DB)
+    participant AI as ✨ Gemini API
 
-    %% 노드 정의 (따옴표로 감싸서 오류 방지)
-    Start(["시작: 사용자 웹 접속"]):::startend
-    InitDB[("Google Drive DB:<br>초기 데이터 로드")]:::db
-    ShowUI["Streamlit 웹 UI 표시"]
+    Note over User, AI: 1. 초기화 및 메뉴 로딩 (Initialization)
+    User->>Web: 사이트 접속
+    Web->>DB: 최신 AI 도구 리스트 요청 (Fetch Data)
+    DB-->>Web: 직무(Job), 상황(Situation) 데이터 반환
+    Web-->>User: 사이드바 옵션 및 UI 표시
 
-    InputChoice{"입력 방식 선택"}:::decision
-    QuickMenu["빠른 메뉴 선택<br>직무/상황/결과물"]:::process
-    DirectChat["직접 질문 입력<br>자연어"]:::process
-    
-    GenPrompt["프롬프트 생성 및 전송"]:::process
-    GeminiAPI{{"Gemini API:<br>의도 분석 및 추천 결과 생성"}}:::api
-    ShowResult["결과 화면 표시"]
+    Note over User, AI: 2. 추천 서비스 (Recommendation Service)
+    alt 빠른 메뉴 선택 (Quick Menu)
+        User->>Web: 직무/상황 선택 후 질문 생성
+    else 직접 질문 (Direct Chat)
+        User->>Web: 자연어로 고민 입력
+    end
 
-    FeedbackChoice{"사용자 피드백"}:::decision
-    
-    %% 도구 추가 프로세스
-    PathAdd["👍 도구 관리/추천 클릭"]
-    ReqExtract["Gemini에 문맥 추출 요청"]:::process
-    GeminiExtract{{"Gemini API:<br>대화 문맥에서 JSON 데이터 추출"}}:::api
-    UpdateDBAdd[("DB 업데이트:<br>새 도구 데이터 추가")]:::db
+    Web->>AI: 프롬프트 + DB 데이터 전송
+    AI-->>Web: 최적의 AI 도구 및 팁 생성
+    Web-->>User: 추천 결과 화면 표시
 
-    %% 도구 비추천 프로세스
-    PathDislike["👎 비추천 클릭"]
-    UpdateDBDislike[("DB 업데이트:<br>비추천 카운트 +1")]:::db
-    CheckCount{"누적 비추천<br>3회 도달?"}:::decision
-    DeleteRow[("DB 업데이트:<br>해당 도구 영구 삭제")]:::db
-    KeepRow["도구 유지"]
-
-    End(["끝: 대기 상태"]):::startend
-
-    %% 연결선 정의
-    Start --> InitDB
-    InitDB --> ShowUI
-    ShowUI --> InputChoice
-    
-    InputChoice -- "빠른 메뉴" --> QuickMenu
-    InputChoice -- "직접 질문" --> DirectChat
-    
-    QuickMenu --> GenPrompt
-    DirectChat --> GenPrompt
-    
-    GenPrompt --> GeminiAPI
-    GeminiAPI --> ShowResult
-    
-    ShowResult --> FeedbackChoice
-
-    FeedbackChoice -- "만족 (👍)" --> PathAdd
-    PathAdd --> ReqExtract
-    ReqExtract --> GeminiExtract
-    GeminiExtract --> UpdateDBAdd
-    UpdateDBAdd --> End
-
-    FeedbackChoice -- "불만족 (👎)" --> PathDislike
-    PathDislike --> UpdateDBDislike
-    UpdateDBDislike --> CheckCount
-    
-    CheckCount -- "Yes (삭제)" --> DeleteRow
-    CheckCount -- "No (유지)" --> KeepRow
-    
-    DeleteRow --> End
-    KeepRow --> End
+    Note over User, AI: 3. 자가 진화 시스템 (Self-Evolving Loop)
+    opt 사용자 피드백 (Feedback)
+        
+        alt 👍 도구 관리 및 추가 (Add Tool)
+            User->>Web: '이 도구 추가/관리' 버튼 클릭
+            Web->>AI: 대화 문맥(Context)에서 정보 추출 요청
+            AI-->>Web: 구조화된 데이터 반환 (JSON: 이름, 직무, 링크 등)
+            Web->>DB: 새로운 AI 도구 자동 추가 (Update Row)
+            DB-->>Web: 업데이트 완료 신호
+            Web-->>User: "DB에 반영되었습니다" 알림
+        
+        else 👎 비추천 (Dislike)
+            User->>Web: '비추천' 버튼 클릭
+            Web->>DB: 해당 도구 비추천 카운트 증가 (+1)
+            
+            rect rgb(255, 200, 200)
+                Note right of DB: 자동 삭제 로직
+                DB->>DB: 누적 카운트 확인
+                alt 카운트 >= 3회
+                    DB->>DB: 해당 도구 영구 삭제 (Delete Row)
+                end
+            end
+            Web-->>User: 피드백 반영 완료 알림
+        end
+    end
+```

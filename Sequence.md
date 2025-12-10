@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     autonumber
     actor User as 👤 사용자 (User)
@@ -47,3 +48,4 @@ sequenceDiagram
             Web-->>User: 피드백 반영 완료 알림
         end
     end
+```

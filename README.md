@@ -101,7 +101,35 @@ And that became Job-Fit AI Navigator.
 
 ## ⚙️ How It Works
 <img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
+## ⚙️ How It Works: System Architecture
 
+Job-Fit AI Navigator는 **Streamlit 인터페이스**, **Gemini API(LLM)**, 그리고 **Google Spreadsheet(Cloud DB)**가 실시간으로 연동되는 **Self-Evolving System**입니다.
+> The system operates as a **Self-Evolving System** integrating **Streamlit UI**, **Gemini API**, and **Google Spreadsheet** in real-time.
+
+```mermaid
+graph TD
+    User((User))
+    UI[Streamlit Web Interface]
+    DB[(Google Cloud DB\nExcel/Sheets)]
+    LLM[Google Gemini API]
+
+    subgraph Input Phase
+    DB -.->|Sync Options| UI
+    User -->|1. Select via Sidebar| UI
+    User -->|2. Direct Chat| UI
+    end
+
+    subgraph Processing Phase
+    UI -->|3. Send Context| LLM
+    LLM -->|4. Generate Response| UI
+    end
+
+    subgraph Evolution Phase (Core)
+    User -->|5. Click 'Tool Mgmt'| UI
+    UI -->|6. Request Extraction| LLM
+    LLM -->|7. Extract Structured Data| UI
+    UI -->|8. Update or Delete Row| DB
+    end
 <br>
 <br>
 

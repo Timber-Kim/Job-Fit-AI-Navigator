@@ -111,7 +111,7 @@ And that became Job-Fit AI Navigator.
 
 Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job), 상황(Situation), 결과물(Output) 옵션을 제공합니다.
 
-옵션 선택 시, 최적화된 프롬프트가 자동으로 생성되어 대화창에 입력됩니다.
+옵션 선택 시, 최적화된 프롬프트가 자동으로 생성되어 추천 AI 툴이 대화창에 입력됩니다.
 
 >Users can interact in two ways, synchronized in real-time with Google Drive DB.
 >Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
@@ -139,9 +139,9 @@ Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job),
 
 사용자가 추천 결과에 만족하여 도구 관리(Tool Mgmt) 버튼을 누르면, Gemini가 전체 대화 문맥(Context)을 다시 분석합니다.
 
-비정형 텍스트 대화 속에서 직무, 상황, 결과물, 도구명, 특징, 유료여부, 링크 정보를 **JSON 데이터로 추출(Extraction)**합니다.
+비정형 텍스트 대화 속에서 직무, 상황, 결과물, 도구명, 특징, 유료여부, 링크 정보를 JSON 데이터로 추출(Extraction)합니다.
 
-추출된 정보는 **Google Sheet DB에 즉시 추가(Append)**되며, 이는 실시간으로 좌측 '빠른 메뉴'에 반영되어 다른 사용자들에게도 공유됩니다.
+추출된 정보는 Google Sheet DB에 즉시 추가(Append)되며, 이는 실시간으로 좌측 '빠른 메뉴'에 반영되어 다른 사용자들에게도 공유됩니다.
 
 
  - 👎 자동 삭제 시스템 (Auto-Deletion via Feedback):

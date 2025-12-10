@@ -1,0 +1,89 @@
+# User Scenarios for Job-Fit AI Navigator
+# 이 문서는 Job-Fit AI Navigator의 핵심 사용 시나리오를 기술합니다.
+
+---
+
+Scenario 1: The Quick Menu Search (Structured Input)
+[Scenario]: 마케터 김씨는 급하게 인스타그램 광고 카피를 써야 하지만, 어떤 AI가 좋은지 모른다.
+[Persona]: Marketer (Beginner in AI)
+[Goal]: Find an AI tool for writing ad copy quickly.
+
+1. User Action:
+   - 접속 후 좌측 사이드바(Sidebar)의 '빠른 메뉴(Quick Menu)'를 확인한다.
+   - Job: [마케터] 선택
+   - Situation: [콘텐츠/카피라이팅] 선택
+   - Output: [SNS 게시글] 선택
+   - [질문 생성] 버튼 클릭.
+
+2. System Process:
+   - Google Sheet DB에서 해당 조건에 맞는 최적의 프롬프트(Prompt)를 자동 생성한다.
+   - "마케터 직무에서 SNS 게시글 작성을 위해 가장 적합한 AI 도구를 추천해줘."
+
+3. System Response:
+   - Gemini API가 DB를 참조하여 'Copy.ai'와 'Jasper'를 추천한다.
+   - 각 도구의 장점(Tone & Manner 조절 가능)과 무료 사용 여부를 함께 안내한다.
+
+---
+
+Scenario 2: Direct Chat with Intent Recognition (Natural Language)
+[Scenario]: 개발자 이씨는 코드 버그 때문에 골머리를 앓고 있다. 메뉴를 고를 시간도 없이 대화창에 바로 묻는다.
+[Persona]: Developer (Intermediate)
+[Goal]: Debugging python code.
+
+1. User Action:
+   - 메인 대화창에 바로 입력한다.
+   - "파이썬 코드에서 자꾸 인덴트 에러가 나는데 이거 해결해주는 AI 있어?"
+
+2. System Process (Intent Recognition):
+   - Gemini LLM이 자연어 입력을 분석한다.
+   - User Intent: {Job: Developer, Task: Debugging, Language: Python}
+
+3. System Response:
+   - 'GitHub Copilot'과 'ChatGPT(Code Interpreter)'를 추천한다.
+   - 단순 추천을 넘어, "코드를 붙여넣으면 바로 수정된 코드를 뱉어주는 프롬프트 팁"을 함께 제공한다.
+
+---
+
+Scenario 3: The "Self-Evolving" DB - Adding a New Tool (Positive Loop)
+[Scenario]: 얼리어답터 박씨는 최근에 나온 영상 생성 AI 'Sora'를 써보고 감동받았다. 이를 Navigator에 추가하고 싶다.
+[Persona]: Trend Setter (Contributor)
+[Goal]: Add a new tool to the shared Database.
+
+1. User Action:
+   - 대화창에 입력: "야, OpenAI에서 나온 Sora 써봤는데 영상 퀄리티 미쳤어. 이거 추천해줘."
+   - System이 Sora에 대한 정보를 찾아 답변한다.
+   - 사용자가 답변 하단의 [도구 관리 / 추천하기] 버튼을 클릭한다.
+
+2. System Process (Context Extraction):
+   - Gemini가 방금 나눈 대화의 문맥(Context)을 분석한다.
+   - Extraction: 
+     {
+       "Tool Name": "Sora",
+       "Job": "Video Editor/Creator",
+       "Situation": "High-quality Video Generation",
+       "Is_Paid": "Paid (Expected)",
+       "Link": "openai.com/sora"
+     }
+   - 추출된 JSON 데이터를 Google Sheet DB의 마지막 행에 자동으로 추가(Append)한다.
+
+3. Result:
+   - 즉시 '빠른 메뉴'의 추천 알고리즘에 'Sora'가 반영된다.
+   - 이제 다른 사용자가 [영상 제작]을 선택하면 Sora가 추천 목록에 뜬다.
+
+---
+
+Scenario 4: The "Quality Control" - Removing a Bad Tool (Negative Loop)
+[Scenario]: 학생 최씨는 'FreeGPT'라는 툴이 무료라고 해서 추천받았는데, 막상 가보니 전면 유료화가 되어 있었다.
+[Persona]: Student (End User)
+[Goal]: Report incorrect information.
+
+1. User Action:
+   - 추천받은 도구 카드 아래의 [비추천 / 정보 오류] 버튼을 클릭한다.
+
+2. System Process (Auto-Cleaning):
+   - 해당 도구(FreeGPT)의 'Dislike Count'가 DB에서 +1 증가한다.
+   - 시스템 로직 체크: 현재 비추천 누적 횟수가 3회에 도달했는지 확인한다.
+   - (If Count >= 3): Google Sheet DB에서 해당 도구의 행(Row)을 영구 삭제한다.
+
+3. Result:
+   - 더 이상 잘못된 정보를 가진 도구가 다른 사용자에게 추천되지 않는다.

@@ -153,6 +153,9 @@ Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job),
 > Gemini extracts metadata from the chat context and appends it to the Google Sheet, instantly updating the Quick Menu for all users.
 > Tools receiving 3 cumulative downvotes are automatically deleted from the DB to maintain quality.
 
+- ▶️ 자세한 사용방법은 아래 영상을 참고해주세요.
+👉 https://youtu.be/YOrDp8cyQ90
+
 
 <br>
 <br>

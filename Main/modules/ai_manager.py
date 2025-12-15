@@ -11,22 +11,42 @@ import difflib
 # ---------------------------------------------------------
 def configure_genai():
     try:
-        # 1순위: 사용자가 입력한 키가 있으면 사용
-        if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"]:
-            api_key = st.session_state["USER_API_KEY"]
+        # 1. 사용할 API 키 결정
+        api_key = None
         
-        # 2순위: 없으면 개발자의 공용 키 사용
+        # 사용자 키 우선 
+        if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"].strip():
+            api_key = st.session_state["USER_API_KEY"].strip()
+        
+        # 공용 키 다음
         elif "GOOGLE_API_KEY" in st.secrets:
             api_key = st.secrets["GOOGLE_API_KEY"]
         
-        else:
+        if not api_key:
             return None
-            
+
+        # 2. 키 설정 시도
         genai.configure(api_key=api_key)
+        
         return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.8})
         
     except Exception as e:
-        print(f"모델 설정 오류: {e}")
+        error_message = str(e)
+        
+        # 400 Invalid Argument (API Key Invalid) 오류
+        if "API key not valid" in error_message or "API_KEY_INVALID" in error_message:
+            # 🚨 유효하지 않은 키를 입력했을 경우
+            if "USER_API_KEY" in st.session_state:
+                # 1. 사용자에게 오류를 알림
+                st.error("🚨 **입력하신 API Key가 유효하지 않습니다.**\n\n자동으로 공용 키 모드로 전환되었습니다. 다시 시도하시려면 사이드바의 입력창을 비워주세요.")
+                
+                # 2. **세션에 저장된 잘못된 사용자 키를 삭제**하여 공용 키로 자동 전환 유도
+                del st.session_state["USER_API_KEY"] 
+                
+                # 3. Streamlit 재실행을 위해 None 반환 후 다음 턴에 공용 키로 configure 재시도
+                return None
+        
+        print(f"모델 설정 오류: {error_message}")
         return None
 
 # ---------------------------------------------------------

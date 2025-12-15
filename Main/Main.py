@@ -14,7 +14,7 @@ if "master_df" not in st.session_state: st.session_state.master_df = load_db()
 df_tools = st.session_state.master_df
 
 # ==========================================
-# ✅ [개선됨] 429 오류 처리 (st.status 사용)
+# 429 오류 처리 (st.status 사용)
 # ==========================================
 def get_ai_response_safe(messages, df):
     """
@@ -24,7 +24,7 @@ def get_ai_response_safe(messages, df):
     max_retries = 3
     wait_time = 30  # 30초 대기
 
-    # st.status를 사용하면 로딩 과정을 깔끔하게 묶어서 보여줍니다.
+    # st.status를 사용하여 로딩 과정을 깔끔하게 묶기
     with st.status("AI가 답변을 생성하고 있습니다...", expanded=False) as status:
         
         for attempt in range(max_retries):
@@ -40,8 +40,7 @@ def get_ai_response_safe(messages, df):
                 # 2. 429 오류 발생 시 (이 부분이 핵심!)
                 msg = f"⏳ 사용량이 많아 잠시 쉬고 있습니다... ({attempt + 1}/{max_retries})"
                 status.update(label=msg, state="running") # 상태바 메시지 변경
-                
-                # 진행률 바 같은 느낌을 위해 sleep을 쪼개서 줍니다 (선택사항)
+            
                 for _ in range(wait_time):
                     time.sleep(1)
                 
@@ -135,11 +134,10 @@ with st.sidebar:
     # 5) 결과물 양식 선택
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
-    # GitHub 홍보 섹션
+    # GitHub 홍보
     st.markdown("---") 
     GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
 
-    # 👇 [중요] st.info는 disabled 속성이 없으므로, AI가 답변 중이어도 항상 활성화 상태입니다.
     st.info(
         "**🌟 프로젝트가 마음에 드시나요?**\n\n"
         "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
@@ -153,14 +151,14 @@ with st.sidebar:
     with col1:
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
-                  disabled=is_generating,  # 👈 버튼은 비활성화 설정이 있음
+                  disabled=is_generating,  # 👈 버튼은 비활성화 설정
                   on_click=reset_conditions) 
             
     with col2:
         st.button("🗑️ 대화 삭제", 
                   type="primary", 
                   use_container_width=True, 
-                  disabled=is_generating,  # 👈 버튼은 비활성화 설정이 있음
+                  disabled=is_generating,  # 👈 버튼은 비활성화 설정
                   on_click=reset_all)
 
 
@@ -237,15 +235,13 @@ if prompt := st.chat_input("어떤 업무 때문에 고민이신가요?(예시 :
     ask_ai_direct(prompt)
 
 # ==========================================
-# 5. AI 응답 생성 (핵심 변경됨)
+# 5. AI 응답 생성
 # ==========================================
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         ph = st.empty()
         
-        # ⚠️ st.spinner 제거함 (get_ai_response_safe 안의 st.status가 대신함)
-        
-        # 안전한 함수 호출
+        # 함수 호출
         response_text = get_ai_response_safe(st.session_state.messages, st.session_state.master_df)
         
         ph.markdown(response_text)

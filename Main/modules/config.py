@@ -6,7 +6,7 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/176EoAIiDYnDiD9hORKABr_juIgR
 # 사용 모델명
 MODEL_NAME = "gemini-2.5-flash" 
 
-# [핵심 변경] 3단계 추천 전략 프롬프트
+# 3단계 추천 전략 프롬프트
 SYSTEM_PROMPT_TEMPLATE = """
 너는 'Job-Fit AI 도구 큐레이터'야. 
 사용자의 직무와 상황을 분석해서 다음 **3가지 섹션**으로 나누어 도구를 추천해 줘.

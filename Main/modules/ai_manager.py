@@ -7,15 +7,15 @@ from .config import SYSTEM_PROMPT_TEMPLATE, MODEL_NAME
 import difflib
 
 # ---------------------------------------------------------
-# 1. 제미나이 설정 (공통 사용)
+# 1. 제미나이 설정
 # ---------------------------------------------------------
 def configure_genai():
     try:
-        # 1순위: 사용자가 입력한 키가 있으면 그걸 씁니다.
+        # 1순위: 사용자가 입력한 키가 있으면 사용
         if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"]:
             api_key = st.session_state["USER_API_KEY"]
         
-        # 2순위: 없으면 개발자의 공용 키(secrets)를 씁니다.
+        # 2순위: 없으면 개발자의 공용 키 사용
         elif "GOOGLE_API_KEY" in st.secrets:
             api_key = st.secrets["GOOGLE_API_KEY"]
         
@@ -30,7 +30,7 @@ def configure_genai():
         return None
 
 # ---------------------------------------------------------
-# 🛠️ [핵심] AI 호출 공통 처리 함수 (중복 제거용)
+# AI 호출 공통 처리 함수
 # ---------------------------------------------------------
 def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     """
@@ -54,7 +54,7 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                 response = model.generate_content(prompt)
                 text = response.text.strip()
 
-                # 2. 마크다운 코드블럭 제거 (공통)
+                # 2. 마크다운 코드블럭 제거
                 if "```" in text:
                     text = text.replace("```json", "").replace("```", "")
 
@@ -95,9 +95,10 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
 
 
 # ---------------------------------------------------------
-# 2. 메인 AI 답변 생성 (채팅 히스토리 관리로 인해 별도 유지)
+# 2. 메인 AI 답변 생성
 # ---------------------------------------------------------
 
+# 1시간까지 메모리에 저장
 @st.cache_data(show_spinner=False, ttl=3600)
 def get_ai_response(messages, df_tools):
     model = configure_genai()
@@ -125,7 +126,7 @@ def get_ai_response(messages, df_tools):
 
 
 # ---------------------------------------------------------
-# 3. 도구 정보 추출 (리팩토링됨 ✨)
+# 3. 도구 정보 추출
 # ---------------------------------------------------------
 def parse_tools(user_question, ai_answer):
     prompt = f"""
@@ -139,7 +140,6 @@ def parse_tools(user_question, ai_answer):
     2. 부연 설명 없이 JSON만 출력하세요.
     """
 
-    # 공통 함수 호출로 30줄 -> 1줄 단축
     return call_ai_common(
         prompt=prompt,
         status_msg="🛠️ 답변 내용을 분석하여 도구를 추출하고 있습니다...",
@@ -149,7 +149,7 @@ def parse_tools(user_question, ai_answer):
 
 
 # ---------------------------------------------------------
-# 4. 직무 표준화 (리팩토링됨 ✨)
+# 4. 직무 표준화
 # ---------------------------------------------------------
 def normalize_job_category(input_job, existing_jobs):
     """
@@ -162,16 +162,12 @@ def normalize_job_category(input_job, existing_jobs):
     if input_job in existing_jobs:
         return input_job
 
-    # 2. '포함' 관계 확인 (예: '프론트엔드 개발자' -> '개발자'가 목록에 있으면 매칭 안 함)
-    #    단순 포함 관계는 위험할 수 있으므로(기획자 vs 개발자), 
-    #    여기서는 가장 비슷한 단어를 찾는 방식을 추천합니다.
-
-    # 3. 유사도 검사 (오타 수정 정도의 역할)
+    # 2. 유사도 검사 (오타 수정 정도의 역할)
     #    existing_jobs 중에서 input_job과 가장 비슷한 단어 1개를 찾음 (유사도 0.6 이상)
     matches = difflib.get_close_matches(input_job, existing_jobs, n=1, cutoff=0.6)
     
     if matches:
         return matches[0] # 가장 비슷한 기존 직무 반환
 
-    # 4. 매칭되는 게 없으면 그냥 새로운 직무로 인정하고 그대로 반환
+    # 3. 매칭되는 게 없으면 그냥 새로운 직무로 인정하고 그대로 반환
     return input_job

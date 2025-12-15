@@ -4,7 +4,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import datetime
 from .config import SHEET_URL
-# [중요] AI 매니저에서 표준화 함수 가져오기
 from .ai_manager import normalize_job_category
 
 # 구글 시트 연결
@@ -53,7 +52,7 @@ def save_log(job, situation, question, answer):
     except:
         pass 
 
-# DB 업데이트 (자동 직무 표준화 적용)
+# DB 업데이트
 def update_db(action_type, tool_data, current_df):
     target = tool_data.get('추천도구')
     if not target: return False, "오류", current_df
@@ -86,7 +85,7 @@ def update_db(action_type, tool_data, current_df):
                 input_job = tool_data.get('직무', '기타')
                 existing_jobs = [j for j in df['직무'].unique() if j != "직접 입력"]
                 
-                # 직무 표준화 (AI 매니저 함수 사용)
+                # 직무 표준화
                 standardized_job = normalize_job_category(input_job, existing_jobs)
                 tool_data['직무'] = standardized_job
 
@@ -97,7 +96,7 @@ def update_db(action_type, tool_data, current_df):
                 msg = f"🎉 '{target}' 등록 완료! (직무: {standardized_job})"
             updated = True
         
-        # --- [싫어요 👎] 로직 (수정됨) ---
+        # --- [싫어요 👎] 로직 ---
         elif action_type == 'dislike':
             if target in df['추천도구'].values:
                 idx = df[df['추천도구'] == target].index[0]
@@ -122,9 +121,8 @@ def update_db(action_type, tool_data, current_df):
 
         # --- [데이터 저장] ---
         if updated:
-            # 안전한 저장을 위한 전처리
             df = df.fillna("") 
-            df_for_upload = df.astype(str) # 모든 값을 문자열로 변환 (오류 방지)
+            df_for_upload = df.astype(str) # 모든 값을 문자열로 변환
             
             payload = [df_for_upload.columns.values.tolist()] + df_for_upload.values.tolist()
             

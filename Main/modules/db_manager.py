@@ -56,18 +56,17 @@ def save_log(job, situation, question, answer):
 # DB 업데이트 (자동 직무 표준화 적용)
 def update_db(action_type, tool_data, current_df):
     target = tool_data.get('추천도구')
-
     if not target: return False, "오류", current_df
 
     try:
         client = connect_to_client()
         ws = client.open_by_url(SHEET_URL).get_worksheet(0)
         
-        # 1. 최신 데이터 가져오기 (충돌 방지)
+        # 1. 최신 데이터 가져오기 (동시성 문제 최소화)
         data = ws.get_all_records()
         df = pd.DataFrame(data) if data else current_df.copy()
         
-        # 2. 숫자형 컬럼 안전 처리
+        # 2. 숫자형 컬럼 안전 처리 (빈 값은 0으로)
         for col in ['비추천수', '추천수']:
             if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
@@ -75,68 +74,68 @@ def update_db(action_type, tool_data, current_df):
         msg = ""
         updated = False
 
-        # --- 로직 처리 (좋아요/싫어요) ---
+        # --- [좋아요 👍] 로직 ---
         if action_type == 'like':
             if target in df['추천도구'].values:
+                # 이미 있으면 점수 +1
                 idx = df[df['추천도구'] == target].index[0]
                 df.loc[idx, '추천수'] += 1
-                val_dislike = int(df.loc[idx, '비추천수'])
-                if val_dislike > 0: df.loc[idx, '비추천수'] = val_dislike - 1
-                msg = f"✨ '{target}'를 추천했습니다!"
+                msg = f"✨ '{target}' 추천수 증가! (현재: {df.loc[idx, '추천수']})"
             else:
-                # [신규 추가 로직]
+                # 없으면 신규 등록 (기본 점수 1점)
                 input_job = tool_data.get('직무', '기타')
                 existing_jobs = [j for j in df['직무'].unique() if j != "직접 입력"]
-
-                # 👇 여기서 이제 '상태바'가 뜨면서 안전하게 실행됩니다.
+                
+                # 직무 표준화 (AI 매니저 함수 사용)
                 standardized_job = normalize_job_category(input_job, existing_jobs)
                 tool_data['직무'] = standardized_job
 
-                # 필수값 초기화
                 tool_data['비추천수'] = 0
-                tool_data['추천수'] = 1
+                tool_data['추천수'] = 1  # 시작 점수
                 
-                # 데이터 합치기
                 df = pd.concat([df, pd.DataFrame([tool_data])], ignore_index=True)
                 msg = f"🎉 '{target}' 등록 완료! (직무: {standardized_job})"
             updated = True
         
+        # --- [싫어요 👎] 로직 (수정됨) ---
         elif action_type == 'dislike':
             if target in df['추천도구'].values:
                 idx = df[df['추천도구'] == target].index[0]
-                val = int(df.loc[idx, '비추천수']) + 1
-                if val >= 3:
+                
+                # 1. 추천수(점수) 1 감소
+                current_score = int(df.loc[idx, '추천수']) - 1
+                
+                # 2. 점수가 -3 이하이면 삭제
+                if current_score <= -3:
                     df = df.drop(idx).reset_index(drop=True)
+                    msg = f"🗑️ 평가 점수 미달(-3)로 '{target}' 도구가 삭제되었습니다."
                 else:
-                    df.loc[idx, '비추천수'] = val
-                msg = f"📉 의견이 반영되었습니다."
+                    # 삭제 기준이 아니라면 점수만 업데이트
+                    df.loc[idx, '추천수'] = current_score
+                    msg = f"📉 추천 점수가 차감되었습니다. (현재: {current_score})"
+                
                 updated = True
             else:
+                # DB에 없는 도구(AI가 방금 찾은 도구)에 비추천을 누른 경우
+                # 아직 저장되지 않았으므로 아무 일도 일어나지 않음 (혹은 사용자에게 알림)
                 return False, "SILENT", current_df
 
-        # --- [핵심 수정 구간: 안전하게 저장하기] ---
+        # --- [데이터 저장] ---
         if updated:
-            # 1. NaN(빈 값) 제거 (이게 없으면 JSON 에러남)
+            # 안전한 저장을 위한 전처리
             df = df.fillna("") 
+            df_for_upload = df.astype(str) # 모든 값을 문자열로 변환 (오류 방지)
             
-            # 2. 모든 데이터를 문자열로 변환 (가장 강력한 안전장치)
-            # 숫자가 섞여있거나 Timestamp가 있으면 gspread가 에러를 낼 수 있음
-            df_for_upload = df.astype(str)
-
-            # 3. 업로드할 데이터를 리스트로 '미리' 변환
-            # (여기서 에러가 나면 시트는 건드리지 않고 멈춤 -> 데이터 보존됨)
             payload = [df_for_upload.columns.values.tolist()] + df_for_upload.values.tolist()
             
-            # 4. 데이터 준비가 완벽하게 끝난 후에 시트 초기화 및 업데이트
             ws.clear()
-            ws.update(range_name='A1', values=payload) # 문법 호환성 개선
+            ws.update(range_name='A1', values=payload)
             
             return True, msg, df
         
         return True, msg, df
 
     except Exception as e:
-        # 에러가 나도 기존 df를 반환해서 화면이 깨지지 않게 함
         print(f"Update DB Error: {e}") 
         return False, f"오류 발생: {e}", current_df
 

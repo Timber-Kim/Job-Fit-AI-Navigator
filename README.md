@@ -156,7 +156,7 @@ Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job),
 <br>
 
 ▶️ 자세한 사용방법은 다음 영상을 참고해주세요.
-👉 https://youtu.be/YOrDp8cyQ90
+👉 https://youtu.be/MYm3k8vJwOs
 
 
 <br>

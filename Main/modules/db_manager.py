@@ -114,8 +114,18 @@ def update_db(action_type, tool_data, current_df):
                 return False, "SILENT", current_df
 
         if updated:
+            df = df.fillna("") 
+            
             ws.clear()
-            ws.update([df.columns.values.tolist()] + df.values.tolist())
+            
+            # gspread 버전에 따라 update 문법이 다를 수 있어 가장 안전한 방식 사용
+            try:
+                # 방법 1: 최신 gspread (v6.0 이상)
+                ws.update(values=[df.columns.values.tolist()] + df.values.tolist())
+            except:
+                # 방법 2: 구버전 호환 (또는 range 지정)
+                ws.update('A1', [df.columns.values.tolist()] + df.values.tolist())
+
             return True, msg, df
         
         return True, msg, df

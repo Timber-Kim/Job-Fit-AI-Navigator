@@ -13,18 +13,21 @@ def configure_genai():
     try:
         api_key = None
         
-        # 1. 사용자 입력 키 우선 사용
-        if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"].strip():
-            api_key = st.session_state["USER_API_KEY"].strip()
+        # 1. 사용자 입력 키 우선 사용 (공백도 제거하여 유효성 확인)
+        user_key_input = st.session_state.get("USER_API_KEY", "").strip()
         
-        # 2. 공용 키 다음 사용
+        if user_key_input:
+            api_key = user_key_input
+        
+        # 2. 사용자 키가 없으면 공용 키 사용
         elif "GOOGLE_API_KEY" in st.secrets:
             api_key = st.secrets["GOOGLE_API_KEY"]
         
+        # 3. 사용할 키가 없으면 None 반환
         if not api_key:
             return None
 
-        # 3. 키 설정 시도 (여기서 400 오류 발생 가능)
+        # 4. 키 설정 시도 (여기서 400 오류 발생 가능)
         genai.configure(api_key=api_key)
         
         return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.8})
@@ -35,14 +38,12 @@ def configure_genai():
         # 400 Invalid Argument (API Key Invalid) 오류 포착
         if "API key not valid" in error_message or "API_KEY_INVALID" in error_message:
             
-            # 🚨 오류가 발생한 키가 사용자 키인 경우에만 처리
+            # 🚨 유효하지 않은 키를 입력했을 경우 (사용자 키 삭제 후 공용으로 자동 전환)
             if "USER_API_KEY" in st.session_state:
                 st.error("🚨 **입력하신 사용자 API Key가 유효하지 않습니다.**\n\n자동으로 공용 키 모드로 전환되었습니다. 다시 시도하시려면 사이드바의 입력창을 비워주세요.")
                 
-                # 1. 잘못된 사용자 키 삭제
+                # 잘못된 사용자 키 삭제 (공용 키로 전환 유도)
                 del st.session_state["USER_API_KEY"]
-                
-                # 2. Streamlit 즉시 재실행 강제
                 st.rerun() 
             
             # 오류가 발생한 키가 공용 키인 경우

@@ -68,64 +68,54 @@ def reset_conditions():
 
 # [함수 2] 대화 내용까지 싹 다 초기화하는 함수
 def reset_all():
-    # 1. 대화 내용 삭제
     st.session_state.messages = []
-    
-    # 2. 조건 초기화
     reset_conditions()
-    
-    # 3. 도구 관련 데이터 삭제
     for k in list(st.session_state.keys()):
         if k.startswith("tools_"): del st.session_state[k]
-
+    # st.rerun()은 on_click에서 호출하지 않습니다. (버튼이 on_click 핸들러 밖에 있으므로 필요 없음)
+    
+# ==========================================
+# 2. 사이드바
+# ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
-
     st.divider()
-    
-with st.sidebar:
-   # 4. 사용자 API 키 입력창
+
+    # 1. 사용자 API 키 입력창 (AI 검색 중 비활성화)
     user_api_key_input = st.text_input(
         "🔑 (선택) 내 API Key 사용", 
-        value=st.session_state.get("USER_API_KEY", ""), # 기존 값 표시
-        type= "password", 
-        help= "Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다.",
+        value=st.session_state.get("USER_API_KEY", ""), 
+        type="password", 
+        help="Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다.",
+        key="sb_user_api_key_input",  # 명시적 키 추가
         disabled=is_generating
     )
     
-    # 입력 값이 바뀌었을 때
-    if "user_api_key_input" not in st.session_state:
-        st.session_state["user_api_key_input"] = ""
-
-    if user_api_key_input != st.session_state["user_api_key_input"]:
-        st.session_state["user_api_key_input"] = user_api_key_input
-        
-        # 입력된 키를 세션 상태에 저장 (빈 칸이면 키 삭제)
+    # 2. 키 변경 처리 로직
+    if user_api_key_input != st.session_state["sb_user_api_key_input"]:
+        # 세션 상태 업데이트 로직
         if user_api_key_input.strip():
             st.session_state["USER_API_KEY"] = user_api_key_input.strip()
         else:
             if "USER_API_KEY" in st.session_state:
                 del st.session_state["USER_API_KEY"]
             
-        # 키 변경 후 바로 반영을 위해 reran
-        st.rerun()
-        
+        st.rerun() # 키 변경 후 바로 반영
+
     st.divider()
 
-    # 1) 세션 상태 초기화
+    # 3. DB 및 상태 표시 (기존 코드 유지)
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
     if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
-    # 2) DB 연결 상태 표시
     if not df_tools.empty:
         st.success("✅ DB 연결 완료")
     else:
         st.error("DB 연결 실패")
     
-
-
-    # 3) 직무 선택창
+    # 4. 직무, 상황, 결과물 선택창 (기존 코드 유지)
+    # ... (생략: selected_job, selected_situation, output_format 설정 코드) ...
     if not df_tools.empty:
         current_jobs = sorted(df_tools['직무'].astype(str).unique().tolist())
         current_jobs = [j for j in current_jobs if j != "직접 입력"]
@@ -135,37 +125,40 @@ with st.sidebar:
         
     selected_job = st.selectbox("직무", job_options, key="sb_job", disabled=is_generating)
     
-    # 4) 상황 선택창
     selected_situation = "직접 입력"
     if selected_job != "직접 입력":
         sits = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
         selected_situation = st.selectbox("상황", ["직접 입력"] + sits, key="sb_situation", disabled=is_generating)
 
-    # 5) 결과물 양식 선택
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
-    # GitHub 홍보
+
+    # 5. GitHub 홍보 (기존 코드 유지)
     st.markdown("---") 
     GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
-
     st.info(
         "**🌟 프로젝트가 마음에 드시나요?**\n\n"
         "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
         f"[GitHub 바로가기]({GITHUB_URL})"
-    )  
+    )  
     st.divider()
-    
-# 6) 버튼 영역
+
+    # 6. 초기화 버튼 영역 (버튼을 with st.sidebar: 블록의 가장 확실한 위치로 배치)
     col1, col2 = st.columns(2)
     
     with col1:
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
+                  key="btn_reset_conditions", # 명시적 키 부여
+                  disabled=is_generating,  
                   on_click=reset_conditions) 
             
     with col2:
         st.button("🗑️ 대화 삭제", 
+                  type="primary", 
                   use_container_width=True, 
+                  key="btn_reset_all", # 명시적 키 부여
+                  disabled=is_generating,  
                   on_click=reset_all)
 
 

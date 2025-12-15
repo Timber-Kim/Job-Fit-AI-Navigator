@@ -41,6 +41,7 @@ def parse_tools(user_text, ai_text):
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         
+        # [DB 최적화 프롬프트 유지]
         prompt = f"""
         Analyze the conversation below and extract the recommended AI tools into a JSON list.
         
@@ -52,16 +53,12 @@ def parse_tools(user_text, ai_text):
         Please summarize the content into short, concise keywords.
         
         1. **추천도구 (Tool Name):** Exact tool name only.
-        2. **직무 (Job):** Standardized job title (e.g., '마케터', '개발자', '요식업 종사자').
-        
-        3. **상황 (Situation):** - **Combine 'Topic' + 'Action'**. Do NOT use generic words like "Learning" or "Writing" alone.
-           - Capture the **Purpose** of the user.
-           - Bad Example: "맞춤형 학습" (Too vague), "글쓰기" (Too vague).
-           - Good Example: "은어/용어 학습" (Learning Slang), "비즈니스 이메일 작성" (Email Writing).
-           - Max 15 chars. Use Noun phrases.
-           
-        4. **결과물 (Output):** Concrete noun (e.g., "학습 자료", "번역본").
-        5. **특징_및_팁 (Tips):** One short sentence summarizing the core benefit.
+        2. **직무 (Job):** Standardized job title.
+        3. **상황 (Situation):** - Do NOT just copy the user's specific request. 
+           - Define the **General Core Capability**. (e.g. "이미지 생성", "코드 작성")
+           - Max 15 chars.
+        4. **결과물 (Output):** Concrete noun.
+        5. **특징_및_팁 (Tips):** One short sentence.
         6. **유료여부 (Price):** "무료", "유료", "부분유료".
         7. **링크 (Link):** URL.
 

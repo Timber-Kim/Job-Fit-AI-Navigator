@@ -153,7 +153,7 @@ with st.sidebar:
                   disabled=is_generating,
                   on_click=reset_all)
 
-    # 6. GitHub 홍보 (기존 코드 유지)
+    # 6. GitHub 홍보
     st.markdown("---") 
     GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
     st.info(

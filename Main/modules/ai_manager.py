@@ -32,7 +32,7 @@ def get_ai_response(messages, df_tools):
     
     try:
         chat = model.start_chat(history=history)
-        response = chat.send_message(messages[-1]["content"])
+        response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
         return f"오류: {e}"

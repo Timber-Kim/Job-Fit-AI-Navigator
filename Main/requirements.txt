@@ -1,5 +1,6 @@
-streamlit
+streamlit>=1.25.0
 google-generativeai
 pandas
 gspread
 oauth2client
+openpyxl

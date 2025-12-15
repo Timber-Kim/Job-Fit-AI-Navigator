@@ -4,7 +4,7 @@
 SHEET_URL = "https://docs.google.com/spreadsheets/d/176EoAIiDYnDiD9hORKABr_juIgRZZss5ApTqdaRCx5E/edit?gid=0#gid=0"
 
 # 사용 모델명
-MODEL_NAME = "gemini-1.5-flash" 
+MODEL_NAME = "gemini-3.0-flash" 
 
 # [핵심 변경] 3단계 추천 전략 프롬프트
 SYSTEM_PROMPT_TEMPLATE = """

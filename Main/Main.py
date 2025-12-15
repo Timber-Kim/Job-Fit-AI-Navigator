@@ -56,9 +56,6 @@ is_generating = False
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     is_generating = True
 
-# ==========================================
-# 2. 사이드바 (수정된 전체 코드)
-# ==========================================
 
 # [함수 1] 조건만 초기화하는 함수
 def reset_conditions():
@@ -150,7 +147,7 @@ with st.sidebar:
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
                   key="btn_reset_conditions", # 명시적 키 부여
-                  disabled=is_generating,  
+                  disabled=is_generating,
                   on_click=reset_conditions) 
             
     with col2:
@@ -158,7 +155,7 @@ with st.sidebar:
                   type="primary", 
                   use_container_width=True, 
                   key="btn_reset_all", # 명시적 키 부여
-                  disabled=is_generating,  
+                  disabled=is_generating,
                   on_click=reset_all)
 
 

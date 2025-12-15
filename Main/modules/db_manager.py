@@ -56,6 +56,7 @@ def save_log(job, situation, question, answer):
 # DB 업데이트 (자동 직무 표준화 적용)
 def update_db(action_type, tool_data, current_df):
     target = tool_data.get('추천도구')
+
     if not target: return False, "오류", current_df
 
     try:
@@ -86,8 +87,8 @@ def update_db(action_type, tool_data, current_df):
                 # [신규 추가 로직]
                 input_job = tool_data.get('직무', '기타')
                 existing_jobs = [j for j in df['직무'].unique() if j != "직접 입력"]
-                
-                # 직무 표준화
+
+                # 👇 여기서 이제 '상태바'가 뜨면서 안전하게 실행됩니다.
                 standardized_job = normalize_job_category(input_job, existing_jobs)
                 tool_data['직무'] = standardized_job
 

@@ -1,5 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
+from google.api_core import exceptions
+import time
 import json
 import re
 from .config import SYSTEM_PROMPT_TEMPLATE, MODEL_NAME
@@ -89,29 +91,56 @@ def parse_tools(user_query, ai_response_text):
 # ---------------------------------------------------------
 # 4. 직무 표준화 (누락되었던 함수 추가됨 ✅)
 # ---------------------------------------------------------
-def normalize_job_category(new_job, existing_jobs):
+def normalize_job_category(input_job, existing_jobs):
     """
-    새로운 직무 입력 시 기존 DB에 있는 유사 직무로 매핑해주는 함수
+    입력된 직무를 기존 직무 리스트 중 하나로 표준화하거나 새로운 직무명을 제안합니다.
+    (429 오류 발생 시 대기 및 재시도 로직 포함)
     """
-    if not existing_jobs: return new_job
     
-    model = configure_genai()
-    if not model: return new_job
-
+    # AI에게 보낼 프롬프트 구성
+    jobs_str = ", ".join(existing_jobs)
     prompt = f"""
-    새로운 직무: "{new_job}"
-    기존 직무 목록: {existing_jobs}
+    사용자가 입력한 직무: '{input_job}'
     
-    1. '새로운 직무'가 '기존 직무 목록' 중 하나와 의미가 완벽히 같다면, 그 **기존 직무명**을 반환해.
-    2. 완전히 새로운 직무라면, "{new_job}" 그대로 반환해.
-    3. 오직 단어 하나만 출력해. (설명 금지)
+    현재 우리 DB에 있는 직무 목록: [{jobs_str}]
+    
+    [지시사항]
+    1. 사용자의 입력이 기존 목록의 항목과 의미상 매우 유사하다면, 그 기존 항목의 이름을 그대로 반환해.
+    2. 만약 완전히 새로운 직무라면, 범용적인 직무 카테고리 명칭(예: 마케팅, 개발, 디자인, 기획 등)으로 짧게 정제해서 반환해.
+    3. 설명 없이 오직 '직무명' 단어 하나만 반환해.
     """
-    try:
-        res = model.generate_content(prompt)
-        return res.text.strip()
-    except:
-        # 에러 발생 시 그냥 원래 입력값 사용
-        return new_job
+
+    # === [여기가 핵심 수정: 재시도 로직 추가] ===
+    max_retries = 3
+    wait_time = 30
+
+    # 상태바 표시 (Main.py와 동일한 스타일)
+    with st.status("🛠️ AI가 직무를 분석하여 분류하고 있습니다...", expanded=False) as status:
+        for attempt in range(max_retries):
+            try:
+                # AI 호출 (generate_content는 기존에 쓰시던 변수명에 맞게 조정 필요)
+                # 가정: model = genai.GenerativeModel(...) 이 선언되어 있다고 가정
+                response = model.generate_content(prompt)
+                result = response.text.strip()
+                
+                # 성공 시 상태 업데이트
+                status.update(label=f"✅ 분류 완료: {result}", state="complete", expanded=False)
+                return result
+
+            except exceptions.ResourceExhausted:
+                # 사용량 초과 시 대기
+                msg = f"⏳ 사용량이 많아 잠시 대기 중입니다... ({attempt + 1}/{max_retries})"
+                status.update(label=msg, state="running")
+                time.sleep(wait_time) # 대기
+
+            except Exception as e:
+                # 그 외 오류 발생 시 -> 그냥 입력값 그대로 사용 (Fallback)
+                print(f"직무 표준화 오류: {e}")
+                status.update(label="⚠️ 분류 실패 (입력값 그대로 사용)", state="error")
+                return input_job
+
+    # 재시도 횟수 초과 시 -> 입력값 그대로 반환 (저장은 되어야 하니까요)
+    return input_job
 
 # ---------------------------------------------------------
 # 5. 직무 분류 (관리자용)

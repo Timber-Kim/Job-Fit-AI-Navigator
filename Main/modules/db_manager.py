@@ -81,7 +81,7 @@ def update_db(action_type, tool_data, current_df):
                 val_dislike = int(df.loc[idx, '비추천수'])
                 if val_dislike > 0: df.loc[idx, '비추천수'] = val_dislike - 1
                 
-                msg = f"✨ '{target}'에 투표했습니다! (현재 추천수: {df.loc[idx, '추천수']})"
+                msg = f"✨ '{target}'를 추천했습니다!"
             else:
                 # [핵심] 신규 저장 시 -> AI 자동 직무 표준화 실행!
                 input_job = tool_data.get('직무', '기타')

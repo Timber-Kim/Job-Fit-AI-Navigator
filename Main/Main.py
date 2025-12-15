@@ -198,10 +198,16 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             ph.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})
             
-            # 로그 저장 (직접 입력인 경우 처리)
-            log_job = selected_job if selected_job != "직접 입력" else "직접/기타"
-            log_sit = selected_situation if selected_situation != "직접 입력" else "직접/기타"
-            save_log(log_job, log_sit, st.session_state.messages[-2]["content"], response_text)
+# ✅ [수정됨] 안전한 함수 호출로 변경 (get_ai_response -> get_ai_response_safe)
+            response_text = get_ai_response_safe(st.session_state.messages, st.session_state.master_df)
             
-            # 답변 완료 후 UI 잠금 해제를 위해 리런
+            ph.markdown(response_text)
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
+            
+            # 오류 메시지가 아닐 때만 로그 저장
+            if not response_text.startswith("❌"):
+                log_job = selected_job if selected_job != "직접 입력" else "직접/기타"
+                log_sit = selected_situation if selected_situation != "직접 입력" else "직접/기타"
+                save_log(log_job, log_sit, st.session_state.messages[-2]["content"], response_text)
+            
             st.rerun()

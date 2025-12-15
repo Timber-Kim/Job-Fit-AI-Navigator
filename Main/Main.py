@@ -38,7 +38,7 @@ def get_ai_response_safe(messages, df):
                 
             except exceptions.ResourceExhausted:
                 # 2. 429 오류 발생 시 (이 부분이 핵심!)
-                msg = f"⏳ 무료 사용량이 많아 잠시 쉬고 있습니다... ({attempt + 1}/{max_retries})"
+                msg = f"⏳ 사용량이 많아 잠시 쉬고 있습니다... ({attempt + 1}/{max_retries})"
                 status.update(label=msg, state="running") # 상태바 메시지 변경
                 
                 # 진행률 바 같은 느낌을 위해 sleep을 쪼개서 줍니다 (선택사항)
@@ -167,7 +167,7 @@ def ask_ai_direct(prompt_text):
     st.session_state.messages.append({"role": "user", "content": prompt_text})
     st.rerun()
 
-if prompt := st.chat_input("어떤 업무 때문에 고민이신가요?", disabled=is_generating):
+if prompt := st.chat_input("어떤 업무 때문에 고민이신가요?(예시 : 초보 개발자를 위한 AI 도구를 추천해줘.)", disabled=is_generating):
     ask_ai_direct(prompt)
 
 # ==========================================

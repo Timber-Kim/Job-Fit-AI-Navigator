@@ -3,6 +3,7 @@ import time
 from modules.config import WELCOME_MSG
 from modules.db_manager import load_db, update_db, save_log, clean_job_titles
 from modules.ai_manager import get_ai_response, parse_tools
+from google.api_core import exceptions
 
 st.set_page_config(page_title="Job-Fit AI 네비게이터", page_icon="🤖", layout="wide")
 
@@ -11,6 +12,36 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "master_df" not in st.session_state: st.session_state.master_df = load_db()
 
 df_tools = st.session_state.master_df
+
+# ==========================================
+# ✅ [추가됨] 429 오류(사용량 초과) 자동 해결 함수
+# ==========================================
+def get_ai_response_safe(messages, df):
+    """
+    AI 응답을 요청하되, 429 오류(Quota Exceeded)가 발생하면 
+    자동으로 대기했다가 재시도합니다.
+    """
+    max_retries = 3
+    wait_time = 30  # 30초 대기
+
+    for attempt in range(max_retries):
+        try:
+            # 원래 함수 호출
+            return get_ai_response(messages, df)
+            
+        except exceptions.ResourceExhausted:
+            # 429 오류 발생 시 화면 알림 및 대기
+            msg = f"⚠️ 무료 사용량이 초과되었습니다. {wait_time}초 대기 후 재시도합니다... ({attempt + 1}/{max_retries})"
+            st.warning(msg)
+            st.toast(msg, icon="⏳")
+            
+            time.sleep(wait_time) # 프로그램 잠시 멈춤 (대기)
+            
+        except Exception as e:
+            # 그 외 오류는 즉시 반환
+            return f"❌ 오류가 발생했습니다: {str(e)}"
+
+    return "❌ 재시도 횟수를 초과했습니다. 잠시 후 다시 질문해 주세요."
 
 # [핵심] AI가 답변 생성 중인지 확인 (생성 중이면 입력을 막기 위함)
 is_generating = False

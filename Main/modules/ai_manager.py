@@ -78,12 +78,25 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                     status.update(label="✅ 처리 완료!", state="complete", expanded=False)
                     return text
 
+            except exceptions.InvalidArgument as e:
+                err_msg = str(e)
+                if "API key not valid" in err_msg or "API_KEY_INVALID" in err_msg:
+                    # 사용자에게 명확한 에러 메시지 표시
+                    status.update(label="⛔ API 키 오류!", state="error")
+                    st.error("🚨 **입력하신 API Key가 올바르지 않습니다.**\n\n오타가 없는지, 공백이 들어가지 않았는지 확인해 주세요. (사이드바에서 키를 지우면 공용 키로 자동 전환됩니다.)")
+                    return fallback_value
+                else:
+                    # 진짜 요청 내용이 잘못된 경우
+                    status.update(label="❌ 잘못된 요청입니다 (400)", state="error")
+                    return fallback_value
+
+            # [기존] 429 사용량 초과 처리
             except exceptions.ResourceExhausted:
-                # 4. 사용량 초과 시 대기 (재시도 로직)
                 msg = f"⏳ 사용량이 많아 잠시 대기 중입니다... ({attempt + 1}/{max_retries})"
                 status.update(label=msg, state="running")
                 time.sleep(wait_time)
 
+            # [기존] 기타 오류 처리
             except Exception as e:
                 print(f"AI 호출 중 오류: {e}")
                 status.update(label="❌ 오류 발생", state="error")

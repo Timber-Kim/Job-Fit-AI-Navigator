@@ -146,8 +146,6 @@ with st.sidebar:
                   key="btn_reset_all", # 명시적 키 부여
                   disabled=is_generating,
                   on_click=reset_all)
-    
-    st.divider()
 
     # 5. GitHub 홍보 (기존 코드 유지)
     st.markdown("---") 

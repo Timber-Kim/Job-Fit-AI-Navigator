@@ -82,6 +82,7 @@ with st.sidebar:
     st.title("🎛️ 메뉴")
 
     st.divider()
+    
 with st.sidebar:
    # 4. 사용자 API 키 입력창
     user_api_key_input = st.text_input(
@@ -89,6 +90,7 @@ with st.sidebar:
         value=st.session_state.get("USER_API_KEY", ""), # 기존 값 표시
         type="password", 
         help="Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다."
+        disabled=is_generating
     )
     
     # 입력 값이 바뀌었을 때
@@ -159,14 +161,14 @@ with st.sidebar:
     with col1:
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
-                  disabled=is_generating,  # 👈 버튼은 비활성화 설정
+                  disabled=is_generating,
                   on_click=reset_conditions) 
             
     with col2:
         st.button("🗑️ 대화 삭제", 
                   type="primary", 
                   use_container_width=True, 
-                  disabled=is_generating,  # 👈 버튼은 비활성화 설정
+                  disabled=is_generating, 
                   on_click=reset_all)
 
 

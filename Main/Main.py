@@ -129,18 +129,7 @@ with st.sidebar:
 
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
-
-    # 5. GitHub 홍보 (기존 코드 유지)
-    st.markdown("---") 
-    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
-    st.info(
-        "**🌟 프로젝트가 마음에 드시나요?**\n\n"
-        "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
-        f"[GitHub 바로가기]({GITHUB_URL})"
-    )
-    st.divider()
-
-    # 6. 초기화 버튼 영역 (버튼을 with st.sidebar: 블록의 가장 확실한 위치로 배치)
+    # 6. 초기화 버튼 영역
     col1, col2 = st.columns(2)
     
     with col1:
@@ -157,6 +146,18 @@ with st.sidebar:
                   key="btn_reset_all", # 명시적 키 부여
                   disabled=is_generating,
                   on_click=reset_all)
+    
+    st.divider()
+
+    # 5. GitHub 홍보 (기존 코드 유지)
+    st.markdown("---") 
+    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
+    st.info(
+        "**🌟 프로젝트가 마음에 드시나요?**\n\n"
+        "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
+        f"[GitHub 바로가기]({GITHUB_URL})"
+    )
+    st.divider()
 
 
 

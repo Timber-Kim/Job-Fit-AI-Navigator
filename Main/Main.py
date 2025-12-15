@@ -58,21 +58,24 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     is_generating = True
 
 # ==========================================
-# 2. 사이드바
+# 2. 사이드바 (여기에 모든 사이드바 코드를 몰아넣어야 합니다)
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
     st.divider()
     
+    # 1) 세션 상태 초기화
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
     if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
+    # 2) DB 연결 상태 표시
     if not df_tools.empty:
         st.success("✅ DB 연결 완료")
     else:
         st.error("DB 연결 실패")
 
+    # 3) 직무 선택창
     if not df_tools.empty:
         current_jobs = sorted(df_tools['직무'].astype(str).unique().tolist())
         current_jobs = [j for j in current_jobs if j != "직접 입력"]
@@ -82,15 +85,18 @@ with st.sidebar:
         
     selected_job = st.selectbox("직무", job_options, key="sb_job", disabled=is_generating)
     
+    # 4) 상황 선택창
     selected_situation = "직접 입력"
     if selected_job != "직접 입력":
         sits = sorted(df_tools[df_tools['직무'] == selected_job]['상황'].astype(str).unique().tolist())
         selected_situation = st.selectbox("상황", ["직접 입력"] + sits, key="sb_situation", disabled=is_generating)
 
+    # 5) 결과물 양식 선택
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
     st.divider()
     
+    # 6) 초기화 버튼
     if st.button("🔄 새로운 대화 시작", use_container_width=True, disabled=is_generating):
         st.session_state.messages = []
         st.session_state.sb_job = "직접 입력"
@@ -100,12 +106,13 @@ with st.sidebar:
             if k.startswith("tools_"): del st.session_state[k]
         st.rerun()
 
-    st.sidebar.markdown("---") # 구분선
-    
-    # 깃허브 주소 (본인의 레포지토리 주소로 변경하세요)
-    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator"
+    # ==========================================
+    # ✅ GitHub 홍보 섹션 (반드시 with st.sidebar: 안쪽에 들여쓰기 되어야 함)
+    # ==========================================
+    st.markdown("---") 
+    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" # 본인 주소로 변경
 
-    st.sidebar.info(
+    st.info(
         "**🌟 프로젝트가 마음에 드시나요?**\n\n"
         "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
         f"[GitHub 바로가기]({GITHUB_URL})"

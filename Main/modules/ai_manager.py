@@ -89,6 +89,8 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
 # ---------------------------------------------------------
 # 2. 메인 AI 답변 생성 (채팅 히스토리 관리로 인해 별도 유지)
 # ---------------------------------------------------------
+
+@st.cache_data(show_spinner=False, ttl=3600)
 def get_ai_response(messages, df_tools):
     model = configure_genai()
     if not model: 

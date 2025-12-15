@@ -81,6 +81,24 @@ def reset_all():
 
 with st.sidebar:
     st.title("🎛️ 메뉴")
+    
+    st.divider()
+    user_api_key = st.text_input("🔑 (선택) 내 Gemini API Key 사용", type="password", help="입력하면 더 빠르고 끊김 없이 이용 가능합니다.")
+    
+    if user_api_key:
+        st.session_state["USER_API_KEY"] = user_api_key
+    
+# config/ai_manager에서 키 설정할 때:
+def configure_genai():
+    # 1순위: 사용자가 입력한 키
+    if "USER_API_KEY" in st.session_state:
+        api_key = st.session_state["USER_API_KEY"]
+    # 2순위: 내 공용 키
+    else:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        
+    genai.configure(api_key=api_key)
+    # ...
     st.divider()
     
     # 1) 세션 상태 초기화

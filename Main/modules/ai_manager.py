@@ -18,7 +18,9 @@ def get_ai_response(messages, df_tools):
 
     csv_context = ""
     if not df_tools.empty:
-        display_cols = [c for c in df_tools.columns if c not in ['비추천수', '추천수']]
+        # [핵심 변경] AI가 인기도를 판단해야 하므로 '추천수'는 보여줍니다!
+        # '비추천수'만 숨깁니다. (부정적 편향 방지)
+        display_cols = [c for c in df_tools.columns if c != '비추천수']
         csv_context = df_tools[display_cols].to_string(index=False)
     
     full_prompt = SYSTEM_PROMPT_TEMPLATE.format(csv_context=csv_context)
@@ -34,11 +36,12 @@ def get_ai_response(messages, df_tools):
     except Exception as e:
         return f"오류: {e}"
 
-# [핵심 수정] 도구 정보 추출 (일반화 기능 강화)
+# 도구 정보 추출 (이전과 동일)
 def parse_tools(user_text, ai_text):
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         
+        # [DB 최적화 프롬프트 유지]
         prompt = f"""
         Analyze the conversation below and extract the recommended AI tools into a JSON list.
         
@@ -47,21 +50,17 @@ def parse_tools(user_text, ai_text):
         A: {ai_text}
         
         [IMPORTANT: Style Guide for Database Optimization]
-        Please summarize the content into short, concise keywords like a database entry.
+        Please summarize the content into short, concise keywords.
         
         1. **추천도구 (Tool Name):** Exact tool name only.
-        2. **직무 (Job):** Standardized job title (e.g., '마케터', '개발자').
-        
+        2. **직무 (Job):** Standardized job title.
         3. **상황 (Situation):** - Do NOT just copy the user's specific request. 
-           - Define the **General Core Capability** of the tool.
-           - Example: User asks "Logo Design" -> You save "이미지 생성" (NOT "Logo Design").
-           - Example: User asks "Python Debugging" -> You save "코드 작성 및 수정".
-           - Max 15 chars. Use Noun phrases.
-           
-        4. **결과물 (Output):** Concrete noun. (e.g., "PPT 슬라이드", "소스 코드").
-        5. **특징_및_팁 (Tips):** One short sentence summarizing the core benefit. Max 40 chars.
-        6. **유료여부 (Price):** Only use "무료", "유료", "부분유료".
-        7. **링크 (Link):** URL starting with http.
+           - Define the **General Core Capability**. (e.g. "이미지 생성", "코드 작성")
+           - Max 15 chars.
+        4. **결과물 (Output):** Concrete noun.
+        5. **특징_및_팁 (Tips):** One short sentence.
+        6. **유료여부 (Price):** "무료", "유료", "부분유료".
+        7. **링크 (Link):** URL.
 
         Format: JSON List
         """
@@ -72,7 +71,7 @@ def parse_tools(user_text, ai_text):
     except:
         return []
 
-# 직무 표준화 (기존 동일)
+# 직무 표준화 (이전과 동일)
 def normalize_job_category(new_job, existing_jobs):
     if not existing_jobs: return new_job
     model = configure_genai()

@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import json
+import re
 from .config import SYSTEM_PROMPT_TEMPLATE, MODEL_NAME
 
 # 제미나이 설정
@@ -37,38 +38,50 @@ def get_ai_response(messages, df_tools):
         return f"오류: {e}"
 
 # 도구 정보 추출 (이전과 동일)
-def parse_tools(user_text, ai_text):
+def parse_tools(user_query, ai_response_text):
+    """
+    AI 답변 텍스트에서 추천된 도구 이름만 'AI를 이용해' 스마트하게 추출합니다.
+    """
     try:
-        model = genai.GenerativeModel(MODEL_NAME)
+        # 추출 전용 프롬프트
+        extraction_prompt = f"""
+        다음은 AI가 사용자에게 답변한 내용입니다.
+        이 답변 내용 중에서 추천된 'AI 도구 이름' 또는 '소프트웨어 서비스 이름'만 추출하세요.
         
-        # [DB 최적화 프롬프트 유지]
-        prompt = f"""
-        Analyze the conversation below and extract the recommended AI tools into a JSON list.
+        [답변 내용]
+        {ai_response_text}
         
-        [Conversation]
-        Q: {user_text}
-        A: {ai_text}
-        
-        [IMPORTANT: Style Guide for Database Optimization]
-        Please summarize the content into short, concise keywords.
-        
-        1. **추천도구 (Tool Name):** Exact tool name only.
-        2. **직무 (Job):** Standardized job title.
-        3. **상황 (Situation):** - Do NOT just copy the user's specific request. 
-           - Define the **General Core Capability**. (e.g. "이미지 생성", "코드 작성")
-           - Max 15 chars.
-        4. **결과물 (Output):** Concrete noun.
-        5. **특징_및_팁 (Tips):** One short sentence.
-        6. **유료여부 (Price):** "무료", "유료", "부분유료".
-        7. **링크 (Link):** URL.
-
-        Format: JSON List
+        [규칙]
+        1. 결과는 반드시 순수한 JSON 리스트 포맷이어야 합니다. (예: ["ChatGPT", "Midjourney", "Gamma"])
+        2. 도구 이름이 명확하지 않으면 빈 리스트 [] 를 반환하세요.
+        3. 부연 설명 없이 JSON만 출력하세요.
         """
+
+        # 모델 설정이 모듈 내에 없다면 여기서 잠시 초기화 (이미 있다면 생략 가능)
+        # genai.configure(api_key="YOUR_API_KEY") 
+        # model = genai.GenerativeModel('gemini-2.5-flash')
         
-        res = model.generate_content(prompt)
-        text = res.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text) if text.startswith("[") else [json.loads(text)]
-    except:
+        # AI에게 추출 요청
+        extraction_response = model.generate_content(extraction_prompt)
+        text = extraction_response.text.strip()
+
+        # 혹시 모를 마크다운 제거 (```json ... ```)
+        text = text.replace("```json", "").replace("```", "").strip()
+        
+        # JSON 변환
+        tool_names = json.loads(text)
+        
+        # 리스트가 아니거나 비어있으면 빈 리스트 반환
+        if not isinstance(tool_names, list):
+            return []
+            
+        # 메인 코드 형식에 맞게 변환 ([{'추천도구': '이름'}] 형식)
+        parsed_tools = [{"추천도구": name} for name in tool_names if isinstance(name, str)]
+        
+        return parsed_tools
+
+    except Exception as e:
+        print(f"Tool Extraction Error: {e}")
         return []
 
 # 직무 표준화 (이전과 동일)

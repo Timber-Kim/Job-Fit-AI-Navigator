@@ -31,7 +31,7 @@ def get_ai_response_safe(messages, df):
             
         except exceptions.ResourceExhausted:
             # 429 오류 발생 시 화면 알림 및 대기
-            msg = f"⚠️ 무료 사용량이 초과되었습니다. {wait_time}초 대기 후 재시도합니다... ({attempt + 1}/{max_retries})"
+            msg = f"⚠️ 사용량이 초과되었습니다. {wait_time}초 대기 후 재시도합니다... ({attempt + 1}/{max_retries})"
             st.warning(msg)
             st.toast(msg, icon="⏳")
             

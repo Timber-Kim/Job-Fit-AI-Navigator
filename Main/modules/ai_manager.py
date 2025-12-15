@@ -11,21 +11,20 @@ import difflib
 # ---------------------------------------------------------
 def configure_genai():
     try:
-        # 1. 사용할 API 키 결정
         api_key = None
         
-        # 사용자 키 우선 
+        # 1. 사용자 입력 키 우선 사용
         if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"].strip():
             api_key = st.session_state["USER_API_KEY"].strip()
         
-        # 공용 키 다음
+        # 2. 공용 키 다음 사용
         elif "GOOGLE_API_KEY" in st.secrets:
             api_key = st.secrets["GOOGLE_API_KEY"]
         
         if not api_key:
             return None
 
-        # 2. 키 설정 시도
+        # 3. 키 설정 시도 (여기서 400 오류 발생 가능)
         genai.configure(api_key=api_key)
         
         return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.8})
@@ -33,18 +32,22 @@ def configure_genai():
     except Exception as e:
         error_message = str(e)
         
-        # 400 Invalid Argument (API Key Invalid) 오류
+        # 400 Invalid Argument (API Key Invalid) 오류 포착
         if "API key not valid" in error_message or "API_KEY_INVALID" in error_message:
-            # 🚨 유효하지 않은 키를 입력했을 경우
+            
+            # 🚨 오류가 발생한 키가 사용자 키인 경우에만 처리
             if "USER_API_KEY" in st.session_state:
-                # 1. 사용자에게 오류를 알림
-                st.error("🚨 **입력하신 API Key가 유효하지 않습니다.**\n\n자동으로 공용 키 모드로 전환되었습니다. 다시 시도하시려면 사이드바의 입력창을 비워주세요.")
+                st.error("🚨 **입력하신 사용자 API Key가 유효하지 않습니다.**\n\n자동으로 공용 키 모드로 전환되었습니다. 다시 시도하시려면 사이드바의 입력창을 비워주세요.")
                 
-                # 2. **세션에 저장된 잘못된 사용자 키를 삭제**하여 공용 키로 자동 전환 유도
-                del st.session_state["USER_API_KEY"] 
+                # 1. 잘못된 사용자 키 삭제
+                del st.session_state["USER_API_KEY"]
                 
-                # 3. Streamlit 재실행을 위해 None 반환 후 다음 턴에 공용 키로 configure 재시도
-                return None
+                # 2. Streamlit 즉시 재실행 강제
+                st.rerun() 
+            
+            # 오류가 발생한 키가 공용 키인 경우
+            elif "GOOGLE_API_KEY" in st.secrets:
+                 st.error("⛔ **앱 설정 오류**: 공용 API Key가 유효하지 않습니다. 개발자에게 문의해주세요.")
         
         print(f"모델 설정 오류: {error_message}")
         return None

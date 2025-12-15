@@ -34,12 +34,11 @@ def get_ai_response(messages, df_tools):
     except Exception as e:
         return f"오류: {e}"
 
-# [핵심 수정] 도구 정보 추출 (DB용 요약 기능 강화)
+# [핵심 수정] 도구 정보 추출 (일반화 기능 강화)
 def parse_tools(user_text, ai_text):
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         
-        # 프롬프트에 '요약 지침'을 강력하게 넣었습니다.
         prompt = f"""
         Analyze the conversation below and extract the recommended AI tools into a JSON list.
         
@@ -52,23 +51,19 @@ def parse_tools(user_text, ai_text):
         
         1. **추천도구 (Tool Name):** Exact tool name only.
         2. **직무 (Job):** Standardized job title (e.g., '마케터', '개발자').
-        3. **상황 (Situation):** Max 15 chars. Use Noun phrases. (e.g., "PPT 기획", "코드 작성", "이미지 생성"). NO long sentences.
-        4. **결과물 (Output):** Concrete noun. (e.g., "PPT 슬라이드", "소스 코드", "요약본").
-        5. **특징_및_팁 (Tips):** One short sentence summarizing the core benefit. Max 40 chars. (e.g., "출처 표시로 팩트 체크 용이", "한국어 인식률 최상").
+        
+        3. **상황 (Situation):** - Do NOT just copy the user's specific request. 
+           - Define the **General Core Capability** of the tool.
+           - Example: User asks "Logo Design" -> You save "이미지 생성" (NOT "Logo Design").
+           - Example: User asks "Python Debugging" -> You save "코드 작성 및 수정".
+           - Max 15 chars. Use Noun phrases.
+           
+        4. **결과물 (Output):** Concrete noun. (e.g., "PPT 슬라이드", "소스 코드").
+        5. **특징_및_팁 (Tips):** One short sentence summarizing the core benefit. Max 40 chars.
         6. **유료여부 (Price):** Only use "무료", "유료", "부분유료".
         7. **링크 (Link):** URL starting with http.
 
         Format: JSON List
-        Example:
-        [{{
-            "추천도구": "Gamma", 
-            "직무": "마케터", 
-            "상황": "PPT 기획 및 디자인", 
-            "결과물": "PPT 슬라이드", 
-            "특징_및_팁": "주제 입력 시 목차부터 디자인까지 자동 생성", 
-            "유료여부": "부분유료", 
-            "링크": "https://gamma.app/"
-        }}]
         """
         
         res = model.generate_content(prompt)
@@ -77,7 +72,7 @@ def parse_tools(user_text, ai_text):
     except:
         return []
 
-# 저장 시점 자동 직무 표준화 (기존 유지)
+# 직무 표준화 (기존 동일)
 def normalize_job_category(new_job, existing_jobs):
     if not existing_jobs: return new_job
     model = configure_genai()
@@ -87,7 +82,6 @@ def normalize_job_category(new_job, existing_jobs):
     새로운 직무: "{new_job}"
     기존 직무 목록: {existing_jobs}
     
-    [지시사항]
     1. '새로운 직무'가 '기존 직무 목록' 중 하나와 의미가 같다면, 그 **기존 직무명**을 반환해.
     2. 완전히 새로운 직무라면, "{new_job}" 그대로 반환해.
     3. 오직 단어 하나만 출력해.

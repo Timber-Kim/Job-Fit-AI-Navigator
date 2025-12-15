@@ -54,12 +54,11 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 2. 메인 화면 & 대화 내역 (순서 변경됨)
+# 2. 메인 화면 & 대화 내역
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
 st.markdown(WELCOME_MSG)
 
-# [핵심] 대화 내역을 먼저 보여줍니다. (버튼이 위를 가리지 않게)
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
@@ -99,21 +98,21 @@ for i, m in enumerate(st.session_state.messages):
                             st.rerun()
 
 # ==========================================
-# 3. 빠른 추천 버튼 (대화 내역 아래로 이동!)
+# 3. 빠른 추천 버튼 (대화 내역 아래)
 # ==========================================
 def quick_ask(job, sit, out):
     outs = ", ".join(out) if out else ""
     q = f"직무: {job}, 상황: {sit}, 필요결과물: {outs}. 적합한 AI 도구 추천해줘."
     st.session_state.messages.append({"role": "user", "content": q})
     
+    # 선택값 초기화 (이게 있어야 버튼이 사라짐)
     st.session_state.sb_job = "직접 입력"
     st.session_state.sb_situation = "직접 입력"
     st.session_state.sb_output = []
     
-    # [중요] 강제 리런 (버튼 즉시 삭제)
-    st.rerun()
+    # [수정됨] st.rerun() 제거! 
+    # on_click 콜백이 끝나면 Streamlit이 자동으로 rerun하므로 없어도 됩니다.
 
-# 직무/상황이 선택되었을 때만 -> 대화창 맨 아래에 버튼 표시
 if selected_job != "직접 입력" and selected_situation != "직접 입력":
     st.button(f"🔍 '{selected_job}' - '{selected_situation}' 추천받기", 
               type="primary", 

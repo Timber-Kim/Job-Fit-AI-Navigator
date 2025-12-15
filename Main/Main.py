@@ -139,6 +139,7 @@ with st.sidebar:
 st.title("🚀 Job-Fit AI 네비게이터")
 st.markdown(WELCOME_MSG)
 
+
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
@@ -176,16 +177,7 @@ for i, m in enumerate(st.session_state.messages):
                                 st.toast(msg, icon="📉")
                                 time.sleep(1.5)
                             st.rerun()
-    # GitHub 홍보 섹션
-    st.markdown("---") 
-    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
 
-    # 👇 [중요] st.info는 disabled 속성이 없으므로, AI가 답변 중이어도 항상 활성화 상태입니다.
-    st.info(
-        "**🌟 프로젝트가 마음에 드시나요?**\n\n"
-        "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
-        f"[GitHub 바로가기]({GITHUB_URL})"
-    )
 # ==========================================
 # 4. 빠른 추천 버튼 & 질문 처리
 # ==========================================
@@ -232,4 +224,14 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             log_sit = selected_situation if selected_situation != "직접 입력" else "직접/기타"
             save_log(log_job, log_sit, st.session_state.messages[-2]["content"], response_text)
         
+            # GitHub 홍보 섹션
+        st.markdown("---") 
+        GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
+
+        # 👇 [중요] st.info는 disabled 속성이 없으므로, AI가 답변 중이어도 항상 활성화 상태입니다.
+        st.info(
+            "**🌟 프로젝트가 마음에 드시나요?**\n\n"
+            "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
+            f"[GitHub 바로가기]({GITHUB_URL})"
+        )   
         st.rerun()

@@ -194,11 +194,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     with st.chat_message("assistant"):
         ph = st.empty()
         with st.spinner("AI가 대화내용을 분석 중입니다..."):
-            response_text = get_ai_response(st.session_state.messages, st.session_state.master_df)
-            ph.markdown(response_text)
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
             
-# ✅ [수정됨] 안전한 함수 호출로 변경 (get_ai_response -> get_ai_response_safe)
+            # ✅ [수정됨] 안전한 함수 호출로 변경 (get_ai_response -> get_ai_response_safe)
             response_text = get_ai_response_safe(st.session_state.messages, st.session_state.master_df)
             
             ph.markdown(response_text)

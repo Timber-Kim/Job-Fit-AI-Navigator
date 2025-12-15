@@ -71,7 +71,7 @@ def reset_all():
     # 1. 대화 내용 삭제
     st.session_state.messages = []
     
-    # 2. 조건 초기화 (위의 함수 재활용)
+    # 2. 조건 초기화
     reset_conditions()
     
     # 3. 도구 관련 데이터 삭제
@@ -161,13 +161,11 @@ with st.sidebar:
     with col1:
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
-                  disabled=is_generating,
                   on_click=reset_conditions) 
             
     with col2:
         st.button("🗑️ 대화 삭제", 
                   use_container_width=True, 
-                  disabled=is_generating, 
                   on_click=reset_all)
 
 

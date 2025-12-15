@@ -78,11 +78,12 @@ def reset_all():
     for k in list(st.session_state.keys()):
         if k.startswith("tools_"): del st.session_state[k]
 
+# ==========================================
+# 2. 사이드바
+# ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
-
     st.divider()
-with st.sidebar:
    # 4. 사용자 API 키 입력창
     user_api_key_input = st.text_input(
         "🔑 (선택) 내 API Key 사용", 
@@ -107,7 +108,7 @@ with st.sidebar:
             
         # 키 변경 후 바로 반영을 위해 reran
         st.rerun()
-        
+
     st.divider()
 
     # 1) 세션 상태 초기화
@@ -186,13 +187,17 @@ for i, m in enumerate(st.session_state.messages):
             t_key = f"tools_{i}"
             if t_key not in st.session_state:
                 if st.button("🛠️ 도구 저장/피드백", key=f"btn_{i}", disabled=is_generating):
-                    with st.status("답변을 분석하고 도구를 추출하고 있습니다...", expanded=False) as status:
-                        u_q = st.session_state.messages[i-1]["content"] if i>0 else ""
-                        found = parse_tools(u_q, m["content"])
-                        if found:
-                            st.session_state[t_key] = found
-                            st.rerun()
-                        else: st.warning("추출된 도구가 없습니다.")
+                    
+                    # ⚠️ with st.status(...) 블록 제거됨!
+                    u_q = st.session_state.messages[i-1]["content"] if i>0 else ""
+                    # parse_tools 내부의 call_ai_common에서 status를 관리합니다.
+                    found = parse_tools(u_q, m["content"]) 
+                    
+                    if found:
+                        st.session_state[t_key] = found
+                        st.rerun()
+                    else: 
+                        st.warning("추출된 도구가 없습니다. (AI 응답 오류 또는 도구 미포함)")
             else:
                 tools = st.session_state[t_key]
                 st.caption(f"💡 {len(tools)}개의 도구 확인됨")

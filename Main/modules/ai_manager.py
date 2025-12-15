@@ -4,6 +4,7 @@ from google.api_core import exceptions
 import time
 import json
 from .config import SYSTEM_PROMPT_TEMPLATE, MODEL_NAME
+import difflib
 
 # ---------------------------------------------------------
 # 1. 제미나이 설정 (공통 사용)
@@ -141,20 +142,26 @@ def parse_tools(user_question, ai_answer):
 # 4. 직무 표준화 (리팩토링됨 ✨)
 # ---------------------------------------------------------
 def normalize_job_category(input_job, existing_jobs):
-    jobs_str = ", ".join(existing_jobs)
-    prompt = f"""
-    사용자가 입력한 직무: '{input_job}'
-    현재 우리 DB에 있는 직무 목록: [{jobs_str}]
-    
-    [지시사항]
-    1. 사용자의 입력이 기존 목록의 항목과 의미상 매우 유사하다면, 그 기존 항목의 이름을 그대로 반환해.
-    2. 만약 완전히 새로운 직무라면, 범용적인 직무 카테고리 명칭(예: 마케팅, 개발, 디자인, 기획 등)으로 짧게 정제해서 반환해.
-    3. 설명 없이 오직 '직무명' 단어 하나만 반환해.
     """
+    AI를 쓰지 않고, 파이썬 문자열 비교를 통해 직무를 표준화합니다.
+    (API 비용 절감 및 속도 향상)
+    """
+    input_job = input_job.strip()
+    
+    # 1. 완벽하게 일치하는 직무가 있으면 바로 반환
+    if input_job in existing_jobs:
+        return input_job
 
-    return call_ai_common(
-        prompt=prompt,
-        status_msg="🛠️ AI가 직무를 분석하여 분류하고 있습니다...",
-        output_type="text",
-        fallback_value=input_job # 실패하면 입력값 그대로 사용
-    )
+    # 2. '포함' 관계 확인 (예: '프론트엔드 개발자' -> '개발자'가 목록에 있으면 매칭 안 함)
+    #    단순 포함 관계는 위험할 수 있으므로(기획자 vs 개발자), 
+    #    여기서는 가장 비슷한 단어를 찾는 방식을 추천합니다.
+
+    # 3. 유사도 검사 (오타 수정 정도의 역할)
+    #    existing_jobs 중에서 input_job과 가장 비슷한 단어 1개를 찾음 (유사도 0.6 이상)
+    matches = difflib.get_close_matches(input_job, existing_jobs, n=1, cutoff=0.6)
+    
+    if matches:
+        return matches[0] # 가장 비슷한 기존 직무 반환
+
+    # 4. 매칭되는 게 없으면 그냥 새로운 직무로 인정하고 그대로 반환
+    return input_job

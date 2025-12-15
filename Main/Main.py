@@ -145,6 +145,7 @@ with st.sidebar:
         "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
         f"[GitHub 바로가기]({GITHUB_URL})"
     )  
+    st.divider()
     
 # 6) 버튼 영역
     col1, col2 = st.columns(2)

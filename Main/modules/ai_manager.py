@@ -55,38 +55,71 @@ def get_ai_response(messages, df_tools):
 # ---------------------------------------------------------
 # 3. 도구 정보 추출 (AI 기반)
 # ---------------------------------------------------------
-def parse_tools(user_query, ai_response_text):
-    model = configure_genai()
-    if not model: return []
+def parse_tools(user_question, ai_answer):
+    """
+    대화 내용에서 도구 정보를 추출합니다.
+    (429 오류 발생 시 대기 로직 포함)
+    """
+    
+    # 1. 프롬프트 구성 (기존에 쓰시던 내용 그대로 사용하시면 됩니다)
+    prompt = f"""
+    사용자의 질문: {user_question}
+    AI의 답변: {ai_answer}
+    
+    위 내용에서 추천된 'AI 도구'들의 정보를 다음 JSON 형식의 리스트로 추출해줘.
+    형식: [{{ "추천도구": "도구명", "직무": "관련직무", "상황": "사용상황", "결과물": "예상결과물", "특징_및_팁": "한줄설명", "유료여부": "유료/무료/부분유료", "링크": "URL(없으면 공란)" }}]
+    
+        1. 도구 이름이 명확하지 않으면 빈 리스트 [] 를 반환하세요.
+        2. 부연 설명 없이 JSON만 출력하세요.
+    """
 
-    try:
-        extraction_prompt = f"""
-        다음은 AI가 사용자에게 답변한 내용입니다.
-        이 답변 내용 중에서 추천된 'AI 도구 이름' 또는 '소프트웨어 서비스 이름'만 추출하세요.
-        
-        [답변 내용]
-        {ai_response_text}
-        
-        [규칙]
-        1. 결과는 반드시 순수한 JSON 리스트 포맷이어야 합니다. (예: ["ChatGPT", "Midjourney"])
-        2. 도구 이름이 명확하지 않으면 빈 리스트 [] 를 반환하세요.
-        3. 부연 설명 없이 JSON만 출력하세요.
-        """
+    # 2. 재시도 로직 설정
+    max_retries = 3
+    wait_time = 30
 
-        extraction_response = model.generate_content(extraction_prompt)
-        text = extraction_response.text.strip()
-        text = text.replace("```json", "").replace("```", "").strip()
+    # 3. 상태바 표시 (Main.py의 스피너 대신 여기서 직접 보여줌)
+    with st.status("🛠️ 답변 내용을 분석하여 도구를 추출하고 있습니다...", expanded=False) as status:
         
-        tool_names = json.loads(text)
-        
-        if isinstance(tool_names, list):
-            return [{"추천도구": name} for name in tool_names if isinstance(name, str)]
-            
-        return []
+        for attempt in range(max_retries):
+            try:
+                # --- AI 호출 (사용하시는 모델 변수명에 맞춰주세요) ---
+                response = model.generate_content(prompt) # 예: model
+                text = response.text.strip()
+                
+                # 마크다운 코드블럭 제거 (```json ... ```)
+                if "```" in text:
+                    text = text.replace("```json", "").replace("```", "")
+                
+                # JSON 변환 시도
+                result_json = json.loads(text)
+                
+                # 리스트가 아니면 리스트로 감싸기
+                if isinstance(result_json, dict):
+                    result_json = [result_json]
+                    
+                status.update(label="✅ 도구 추출 완료!", state="complete", expanded=False)
+                return result_json
 
-    except Exception as e:
-        print(f"Tool Extraction Error: {e}")
-        return []
+            except exceptions.ResourceExhausted:
+                # [핵심] 429 에러 발생 시 대기!
+                msg = f"⏳ 사용량이 많아 잠시 대기 중입니다... ({attempt + 1}/{max_retries})"
+                status.update(label=msg, state="running")
+                time.sleep(wait_time)
+
+            except json.JSONDecodeError:
+                # AI가 JSON 형식을 잘못 줬을 때 -> 그냥 넘어가거나 빈 리스트
+                print(f"JSON 파싱 실패: {text}")
+                status.update(label="⚠️ 데이터 형식 오류 (추출 실패)", state="error")
+                return []
+                
+            except Exception as e:
+                # 기타 오류
+                print(f"도구 추출 중 오류: {e}")
+                status.update(label="❌ 오류 발생", state="error")
+                return []
+    
+    # 재시도 횟수를 다 썼을 때
+    return []
 
 # ---------------------------------------------------------
 # 4. 직무 표준화 (누락되었던 함수 추가됨 ✅)

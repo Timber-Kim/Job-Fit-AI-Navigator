@@ -130,16 +130,16 @@ with st.sidebar:
                   use_container_width=True, 
                   disabled=is_generating,  # 👈 버튼은 비활성화 설정이 있음
                   on_click=reset_all)
-        # GitHub 홍보 섹션
-        st.markdown("---") 
-        GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
+    # GitHub 홍보 섹션
+    st.markdown("---") 
+    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
 
-        # 👇 [중요] st.info는 disabled 속성이 없으므로, AI가 답변 중이어도 항상 활성화 상태입니다.
-        st.info(
-            "**🌟 프로젝트가 마음에 드시나요?**\n\n"
-            "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
-            f"[GitHub 바로가기]({GITHUB_URL})"
-        )  
+    # 👇 [중요] st.info는 disabled 속성이 없으므로, AI가 답변 중이어도 항상 활성화 상태입니다.
+    st.info(
+        "**🌟 프로젝트가 마음에 드시나요?**\n\n"
+        "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
+        f"[GitHub 바로가기]({GITHUB_URL})"
+    )  
 
 
 # ==========================================

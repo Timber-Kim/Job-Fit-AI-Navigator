@@ -140,7 +140,7 @@ with st.sidebar:
         "**🌟 프로젝트가 마음에 드시나요?**\n\n"
         "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
         f"[GitHub 바로가기]({GITHUB_URL})"
-    )  
+    )
     st.divider()
 
     # 6. 초기화 버튼 영역 (버튼을 with st.sidebar: 블록의 가장 확실한 위치로 배치)

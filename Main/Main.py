@@ -133,7 +133,7 @@ if prompt := st.chat_input("어떤 업무 때문에 고민이신가요? (예: �
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         ph = st.empty()
-        with st.spinner("AI가 3가지 관점(DB/인기/신규)에서 분석 중입니다..."):
+        with st.spinner("AI가 대화내용을 분석 중입니다..."):
             response_text = get_ai_response(st.session_state.messages, st.session_state.master_df)
             ph.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})

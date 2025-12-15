@@ -11,12 +11,20 @@ import difflib
 # ---------------------------------------------------------
 def configure_genai():
     try:
-        if "GOOGLE_API_KEY" in st.secrets:
-            genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # 1순위: 사용자가 입력한 키가 있으면 그걸 씁니다.
+        if "USER_API_KEY" in st.session_state and st.session_state["USER_API_KEY"]:
+            api_key = st.session_state["USER_API_KEY"]
+        
+        # 2순위: 없으면 개발자의 공용 키(secrets)를 씁니다.
+        elif "GOOGLE_API_KEY" in st.secrets:
+            api_key = st.secrets["GOOGLE_API_KEY"]
+        
         else:
             return None
             
+        genai.configure(api_key=api_key)
         return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.8})
+        
     except Exception as e:
         print(f"모델 설정 오류: {e}")
         return None

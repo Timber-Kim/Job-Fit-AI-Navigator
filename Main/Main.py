@@ -25,7 +25,7 @@ def get_ai_response_safe(messages, df):
     wait_time = 30  # 30초 대기
 
     # st.status를 사용하면 로딩 과정을 깔끔하게 묶어서 보여줍니다.
-    with st.status("AI가 답변을 생성하고 있습니다...", expanded=True) as status:
+    with st.status("AI가 답변을 생성하고 있습니다...", expanded=False) as status:
         
         for attempt in range(max_retries):
             try:

@@ -166,7 +166,6 @@ with st.sidebar:
             
     with col2:
         st.button("🗑️ 대화 삭제", 
-                  type="primary", 
                   use_container_width=True, 
                   disabled=is_generating, 
                   on_click=reset_all)

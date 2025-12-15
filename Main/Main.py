@@ -81,23 +81,30 @@ with st.sidebar:
     # 1. 사용자 API 키 입력창 (AI 검색 중 비활성화)
     user_api_key_input = st.text_input(
         "🔑 (선택) 내 API Key 사용", 
-        value=st.session_state.get("USER_API_KEY", ""), 
+        value=st.session_state.get("USER_API_KEY", ""),
         type="password", 
+        key="sb_user_api_key_input", # 명시적 키 유지
         help="Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다.",
-        key="sb_user_api_key_input",  # 명시적 키 추가
         disabled=is_generating
     )
-    
+    current_session_key = st.session_state.get("USER_API_KEY", "").strip()
+    input_value_stripped = user_api_key_input.strip()
     # 2. 키 변경 처리 로직
-    if user_api_key_input != st.session_state["sb_user_api_key_input"]:
-        # 세션 상태 업데이트 로직
-        if user_api_key_input.strip():
-            st.session_state["USER_API_KEY"] = user_api_key_input.strip()
+    if input_value_stripped != current_session_key:
+        
+        # 2-1. 입력 값이 있을 경우: 새 키 저장
+        if input_value_stripped:
+            st.session_state["USER_API_KEY"] = input_value_stripped
+            st.toast("✅ 사용자 API Key가 등록되었습니다.", icon="🔑")
+            
+        # 2-2. 입력 값이 비어있을 경우: 키 삭제 및 공용 전환
         else:
             if "USER_API_KEY" in st.session_state:
                 del st.session_state["USER_API_KEY"]
-            
-        st.rerun() # 키 변경 후 바로 반영
+                st.toast("✅ 사용자 API Key가 해제되고 공용 키로 전환됩니다.", icon="🔓")
+                
+        # 키가 변경되었으므로 즉시 반영을 위해 reran
+        st.rerun() 
 
     st.divider()
 
@@ -112,7 +119,6 @@ with st.sidebar:
         st.error("DB 연결 실패")
     
     # 4. 직무, 상황, 결과물 선택창 (기존 코드 유지)
-    # ... (생략: selected_job, selected_situation, output_format 설정 코드) ...
     if not df_tools.empty:
         current_jobs = sorted(df_tools['직무'].astype(str).unique().tolist())
         current_jobs = [j for j in current_jobs if j != "직접 입력"]
@@ -129,7 +135,7 @@ with st.sidebar:
 
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
-    # 6. 초기화 버튼 영역
+    # 5. 초기화 버튼 영역
     col1, col2 = st.columns(2)
     
     with col1:
@@ -147,7 +153,7 @@ with st.sidebar:
                   disabled=is_generating,
                   on_click=reset_all)
 
-    # 5. GitHub 홍보 (기존 코드 유지)
+    # 6. GitHub 홍보 (기존 코드 유지)
     st.markdown("---") 
     GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 
     st.info(

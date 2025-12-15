@@ -126,28 +126,15 @@ for i, m in enumerate(st.session_state.messages):
 # 4. 빠른 추천 버튼 & 질문 처리
 # ==========================================
 def quick_ask(job, sit, out):
-    outs_text = ", ".join(out) if out else "특별히 정해지지 않음"
+    # 결과물 조건이 있을 때만 문장 뒤에 자연스럽게 붙임
+    outs_msg = f" (필요한 결과물: {', '.join(out)})" if out else ""
     
-    # [페르소나 프롬프트 적용]
-    q = f"""
-    [내 정보]
-    - 직무: {job}
-    - 현재 상황/고민: {sit}
-    - 필요한 결과물 형태: {outs_text}
-
-    [요청사항]
-    나는 현재 **{job}** 업무를 하고 있어. 
-    지금 **"{sit}"** 업무를 효율적으로 처리하고 싶은데, 여기에 딱 맞는 AI 도구를 추천해 줘.
-    
-    단순히 도구 이름만 알려주지 말고, 
-    1. 왜 이 도구가 내 상황에 맞는지,
-    2. 실무에서 어떻게 활용하면 좋은지 구체적인 꿀팁을 포함해서 알려줘.
-    """
+    # "나 OOO인데, OOO 할 때 쓸만한 거 추천해줘" 스타일
+    q = f"나 **{job}**인데, **{sit}** 업무 할 때 도움되는 AI 도구 좀 추천해 줘.{outs_msg}"
     
     st.session_state.messages.append({"role": "user", "content": q})
     
-    # [핵심] 질문 즉시 사이드바 '직접 입력'으로 초기화
-    # 이렇게 하면 버튼은 즉시 사라지고, 사이드바는 리셋된 상태로 '비활성화' 됩니다.
+    # 선택값 초기화 (버튼 사라지게)
     st.session_state.sb_job = "직접 입력"
     st.session_state.sb_situation = "직접 입력"
     st.session_state.sb_output = []
@@ -175,7 +162,7 @@ if prompt := st.chat_input("어떤 업무 때문에 고민이신가요? (예: �
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         ph = st.empty()
-        with st.spinner("AI가 3가지 관점(DB/인기/신규)에서 분석 중입니다..."):
+        with st.spinner("AI가 대화내용을 분석 중입니다..."):
             response_text = get_ai_response(st.session_state.messages, st.session_state.master_df)
             ph.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})

@@ -34,12 +34,7 @@ def configure_genai():
 # ---------------------------------------------------------
 def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     """
-    AI 호출, 429 오류 재시도, 상태바 표시, JSON 파싱을 통합 관리하는 함수
-    
-    :param prompt: AI에게 보낼 질문
-    :param status_msg: 상태바에 띄울 메시지
-    :param output_type: "text" 또는 "json"
-    :param fallback_value: 실패 시 반환할 기본값
+    AI 호출, 429 오류 재시도, 400 키 오류 감지, 상태바 표시, JSON 파싱을 통합 관리
     """
     model = configure_genai()
     if not model: return fallback_value
@@ -58,12 +53,10 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                 if "```" in text:
                     text = text.replace("```json", "").replace("```", "")
 
-                # 3. 결과 반환 처리
+                # 3. 결과 반환 처리 (JSON/Text)
                 if output_type == "json":
                     try:
                         result = json.loads(text)
-                        
-                        # 리스트가 필요한데 딕셔너리로 오면 감싸주기 (도구 추출용)
                         if isinstance(fallback_value, list) and isinstance(result, dict):
                             result = [result]
                         
@@ -73,11 +66,11 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                         print(f"JSON 파싱 실패: {text}")
                         status.update(label="⚠️ 데이터 형식 오류", state="error")
                         return fallback_value
-                
-                else: # text 반환
+                else:
                     status.update(label="✅ 처리 완료!", state="complete", expanded=False)
                     return text
 
+            # 400 API Key 오류 처리
             except exceptions.InvalidArgument as e:
                 err_msg = str(e)
                 if "API key not valid" in err_msg or "API_KEY_INVALID" in err_msg:
@@ -90,13 +83,13 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                     status.update(label="❌ 잘못된 요청입니다 (400)", state="error")
                     return fallback_value
 
-            # [기존] 429 사용량 초과 처리
+            # 429 사용량 초과 처리
             except exceptions.ResourceExhausted:
                 msg = f"⏳ 사용량이 많아 잠시 대기 중입니다... ({attempt + 1}/{max_retries})"
                 status.update(label=msg, state="running")
                 time.sleep(wait_time)
 
-            # [기존] 기타 오류 처리
+            # 기타 오류 처리
             except Exception as e:
                 print(f"AI 호출 중 오류: {e}")
                 status.update(label="❌ 오류 발생", state="error")

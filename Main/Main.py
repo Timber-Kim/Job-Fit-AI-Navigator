@@ -89,7 +89,7 @@ with st.sidebar:
         "🔑 (선택) 내 API Key 사용", 
         value=st.session_state.get("USER_API_KEY", ""), # 기존 값 표시
         type= "password", 
-        help= "Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다."
+        help= "Google AI Studio에서 발급받은 키를 입력하면 더 빠르고 안정적입니다. 키는 저장되지 않습니다.",
         disabled=is_generating
     )
     

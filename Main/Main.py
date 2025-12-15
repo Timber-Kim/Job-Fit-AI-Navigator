@@ -57,19 +57,16 @@ is_generating = False
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     is_generating = True
 
-# ==========================================
-# 2. 사이드바 (여기에 모든 사이드바 코드를 몰아넣어야 합니다)
-# ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
     st.divider()
     
-    # 1) 세션 상태 초기화
+    # 1) 세션 상태 초기화 (기존 코드 유지)
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
     if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
-    # 2) DB 연결 상태 표시
+    # 2) DB 연결 상태 (기존 코드 유지)
     if not df_tools.empty:
         st.success("✅ DB 연결 완료")
     else:
@@ -96,27 +93,32 @@ with st.sidebar:
 
     st.divider()
     
-    # 6) 초기화 버튼
-    if st.button("🔄 새로운 대화 시작", use_container_width=True, disabled=is_generating):
-        st.session_state.messages = []
-        st.session_state.sb_job = "직접 입력"
-        st.session_state.sb_situation = "직접 입력"
-        st.session_state.sb_output = []
-        for k in list(st.session_state.keys()):
-            if k.startswith("tools_"): del st.session_state[k]
-        st.rerun()
+    # === [버튼 영역 수정됨] ===
+    col1, col2 = st.columns(2)
+    
+    # 버튼 1: 조건만 초기화 (대화 유지)
+    with col1:
+        if st.button("🔄 조건 초기화", use_container_width=True, disabled=is_generating):
+            st.session_state.sb_job = "직접 입력"
+            st.session_state.sb_situation = "직접 입력"
+            st.session_state.sb_output = []
+            st.rerun()
+            
+    # 버튼 2: 대화까지 싹 지우기 (완전 초기화)
+    with col2:
+        if st.button("🗑️ 대화 삭제", type="primary", use_container_width=True, disabled=is_generating):
+            st.session_state.messages = []  # 여기서는 메시지를 지웁니다
+            st.session_state.sb_job = "직접 입력"
+            st.session_state.sb_situation = "직접 입력"
+            st.session_state.sb_output = []
+            for k in list(st.session_state.keys()):
+                if k.startswith("tools_"): del st.session_state[k]
+            st.rerun()
 
-    # ==========================================
-    # ✅ GitHub 홍보 섹션 (반드시 with st.sidebar: 안쪽에 들여쓰기 되어야 함)
-    # ==========================================
+    # GitHub 링크 (기존 코드 유지)
     st.markdown("---") 
-    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" # 본인 주소로 변경
-
-    st.info(
-        "**🌟 프로젝트가 마음에 드시나요?**\n\n"
-        "이슈 제보나 피드백, 응원은 언제나 환영합니다! "
-        f"[GitHub 바로가기]({GITHUB_URL})"
-    )
+    GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator"
+    st.info(f"**🌟 프로젝트가 마음에 드시나요?**\n\n[GitHub 바로가기]({GITHUB_URL})")
 
 # ==========================================
 # 3. 메인 화면 & 대화 내역

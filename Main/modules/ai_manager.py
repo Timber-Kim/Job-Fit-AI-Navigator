@@ -62,7 +62,7 @@ def parse_tools(user_query, ai_response_text):
         # model = genai.GenerativeModel('gemini-2.5-flash')
         
         # AI에게 추출 요청
-        extraction_response = model.generate_content(extraction_prompt)
+        extraction_response = get_ai_response.model.generate_content(extraction_prompt)
         text = extraction_response.text.strip()
 
         # 혹시 모를 마크다운 제거 (```json ... ```)

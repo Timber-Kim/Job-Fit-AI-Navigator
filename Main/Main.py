@@ -61,11 +61,23 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 # 2. 사이드바 (수정된 전체 코드)
 # ==========================================
 
-# [핵심] 초기화 기능을 담당할 함수를 미리 정의합니다.
+# [함수 1] 조건만 초기화하는 함수
 def reset_conditions():
     st.session_state.sb_job = "직접 입력"
     st.session_state.sb_situation = "직접 입력"
     st.session_state.sb_output = []
+
+# [함수 2] 대화 내용까지 싹 다 초기화하는 함수
+def reset_all():
+    # 1. 대화 내용 삭제
+    st.session_state.messages = []
+    
+    # 2. 조건 초기화 (위의 함수 재활용)
+    reset_conditions()
+    
+    # 3. 도구 관련 데이터 삭제
+    for k in list(st.session_state.keys()):
+        if k.startswith("tools_"): del st.session_state[k]
 
 with st.sidebar:
     st.title("🎛️ 메뉴")
@@ -103,26 +115,23 @@ with st.sidebar:
 
     st.divider()
     
-    # 6) 버튼 영역 (여기가 수정되었습니다)
+    # 6) 버튼 영역 (이제 둘 다 on_click을 사용합니다)
     col1, col2 = st.columns(2)
     
-    # 버튼 1: 조건만 초기화 (대화 유지)
+    # 버튼 1: 조건만 초기화
     with col1:
-        # on_click에 함수 이름을 넣어주면, 버튼 클릭 시 해당 함수가 먼저 실행되고 화면이 다시 그려집니다.
         st.button("🔄 조건 초기화", 
                   use_container_width=True, 
                   disabled=is_generating, 
                   on_click=reset_conditions) 
             
-    # 버튼 2: 대화까지 싹 지우기 (완전 초기화)
+    # 버튼 2: 대화 삭제 (완전 초기화)
     with col2:
-        if st.button("🗑️ 대화 삭제", type="primary", use_container_width=True, disabled=is_generating):
-            st.session_state.messages = []
-            reset_conditions() # 위에서 만든 함수 재활용
-            # 도구 관련 세션 삭제
-            for k in list(st.session_state.keys()):
-                if k.startswith("tools_"): del st.session_state[k]
-            st.rerun()
+        st.button("🗑️ 대화 삭제", 
+                  type="primary", 
+                  use_container_width=True, 
+                  disabled=is_generating,
+                  on_click=reset_all) # 여기도 콜백 함수로 변경!
 
     # GitHub 홍보 섹션
     st.markdown("---") 

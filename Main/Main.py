@@ -12,24 +12,21 @@ if "master_df" not in st.session_state: st.session_state.master_df = load_db()
 df_tools = st.session_state.master_df
 
 # ==========================================
-# 1. 사이드바 (입력 컨트롤)
+# 1. 사이드바
 # ==========================================
 with st.sidebar:
     st.title("🎛️ 메뉴")
     st.divider()
     
-    # 세션 상태 초기화 (KeyError 방지)
     if "sb_job" not in st.session_state: st.session_state.sb_job = "직접 입력"
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
     if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
-    # DB 상태 표시
     if not df_tools.empty:
         st.success("✅ DB 연결 완료")
     else:
         st.error("DB 연결 실패")
 
-    # 직무 선택
     if not df_tools.empty:
         current_jobs = sorted(df_tools['직무'].astype(str).unique().tolist())
         current_jobs = [j for j in current_jobs if j != "직접 입력"]
@@ -37,7 +34,6 @@ with st.sidebar:
     else:
         job_options = ["직접 입력"]
         
-    # [중요] key="sb_job"을 통해 session_state와 자동 연동
     selected_job = st.selectbox("직무", job_options, key="sb_job")
     
     selected_situation = "직접 입력"
@@ -48,55 +44,26 @@ with st.sidebar:
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output")
 
     st.divider()
-    
-    # 대화 초기화 버튼
     if st.button("🔄 새로운 대화 시작", use_container_width=True):
         st.session_state.messages = []
-        # 선택값들 초기화
         st.session_state.sb_job = "직접 입력"
         st.session_state.sb_situation = "직접 입력"
         st.session_state.sb_output = []
-        # 도구 관리 키 삭제
         for k in list(st.session_state.keys()):
             if k.startswith("tools_"): del st.session_state[k]
         st.rerun()
 
 # ==========================================
-# 2. 메인 화면 & 빠른 추천 버튼
+# 2. 메인 화면 & 대화 내역 (순서 변경됨)
 # ==========================================
 st.title("🚀 Job-Fit AI 네비게이터")
 st.markdown(WELCOME_MSG)
 
-# [핵심] 빠른 추천 버튼 처리 함수 (콜백)
-def quick_ask(job, sit, out):
-    outs = ", ".join(out) if out else ""
-    q = f"직무: {job}, 상황: {sit}, 필요결과물: {outs}. 적합한 AI 도구 추천해줘."
-    st.session_state.messages.append({"role": "user", "content": q})
-    
-    # [중요] 버튼을 누르자마자 선택값을 초기화합니다.
-    # 이렇게 하면 화면이 다시 그려질 때 버튼 조건(!= 직접입력)이 False가 되어 버튼이 아예 안 그려집니다.
-    st.session_state.sb_job = "직접 입력"
-    st.session_state.sb_situation = "직접 입력"
-    st.session_state.sb_output = []
-
-# [버튼 표시 로직]
-# 직무와 상황이 선택되었을 때만 메인 화면에 버튼 표시
-if selected_job != "직접 입력" and selected_situation != "직접 입력":
-    # on_click에서 값을 초기화하므로, 클릭 즉시 이 조건문은 False가 되어 버튼이 사라짐
-    st.button(f"🔍 '{selected_job}' - '{selected_situation}' 추천받기", 
-              type="primary", 
-              on_click=quick_ask, 
-              args=(selected_job, selected_situation, output_format), 
-              use_container_width=True)
-
-# ==========================================
-# 3. 대화 내용 표시
-# ==========================================
+# [핵심] 대화 내역을 먼저 보여줍니다. (버튼이 위를 가리지 않게)
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         
-        # AI 답변인 경우 도구 관리 UI 표시
         if m["role"] == "assistant":
             t_key = f"tools_{i}"
             if t_key not in st.session_state:
@@ -132,29 +99,47 @@ for i, m in enumerate(st.session_state.messages):
                             st.rerun()
 
 # ==========================================
-# 4. 입력 및 AI 응답 처리
+# 3. 빠른 추천 버튼 (대화 내역 아래로 이동!)
+# ==========================================
+def quick_ask(job, sit, out):
+    outs = ", ".join(out) if out else ""
+    q = f"직무: {job}, 상황: {sit}, 필요결과물: {outs}. 적합한 AI 도구 추천해줘."
+    st.session_state.messages.append({"role": "user", "content": q})
+    
+    st.session_state.sb_job = "직접 입력"
+    st.session_state.sb_situation = "직접 입력"
+    st.session_state.sb_output = []
+    
+    # [중요] 강제 리런 (버튼 즉시 삭제)
+    st.rerun()
+
+# 직무/상황이 선택되었을 때만 -> 대화창 맨 아래에 버튼 표시
+if selected_job != "직접 입력" and selected_situation != "직접 입력":
+    st.button(f"🔍 '{selected_job}' - '{selected_situation}' 추천받기", 
+              type="primary", 
+              on_click=quick_ask, 
+              args=(selected_job, selected_situation, output_format), 
+              use_container_width=True)
+
+# ==========================================
+# 4. 입력 및 AI 응답
 # ==========================================
 def ask_ai_direct(prompt_text):
     st.session_state.messages.append({"role": "user", "content": prompt_text})
     st.rerun()
 
-# 직접 질문 입력창
 if prompt := st.chat_input("어떤 업무 때문에 고민이신가요? (예: 마케팅용 이미지 생성, 회의록 정리)"):
     ask_ai_direct(prompt)
 
-# AI 응답 생성 (가장 마지막에 실행됨)
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         ph = st.empty()
-        # [확인] 이 시점에는 이미 위에서 버튼 변수가 초기화되었으므로 버튼이 안 보임
         with st.spinner("AI가 3가지 관점(DB/인기/신규)에서 분석 중입니다..."):
             response_text = get_ai_response(st.session_state.messages, st.session_state.master_df)
             ph.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})
             
-            # 로그 저장
             log_job = selected_job if selected_job != "직접 입력" else "직접/기타"
             log_sit = selected_situation if selected_situation != "직접 입력" else "직접/기타"
             save_log(log_job, log_sit, st.session_state.messages[-2]["content"], response_text)
-            
             st.rerun()

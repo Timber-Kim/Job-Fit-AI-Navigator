@@ -135,8 +135,6 @@ with st.sidebar:
     # 5) 결과물 양식 선택
     output_format = st.multiselect("결과물 양식", ["보고서", "PPT", "이미지", "영상", "엑셀", "코드"], key="sb_output", disabled=is_generating)
 
-    st.divider()
-    
     # GitHub 홍보 섹션
     st.markdown("---") 
     GITHUB_URL = "https://github.com/Timber-Kim/Job-Fit-AI-Navigator" 

@@ -173,7 +173,7 @@ for i, m in enumerate(st.session_state.messages):
             t_key = f"tools_{i}"
             if t_key not in st.session_state:
                 if st.button("🛠️ 도구 저장/피드백", key=f"btn_{i}", disabled=is_generating):
-                    with st.spinner("답변 분석 중..."):
+                    with st.session_state:
                         u_q = st.session_state.messages[i-1]["content"] if i>0 else ""
                         found = parse_tools(u_q, m["content"])
                         if found:

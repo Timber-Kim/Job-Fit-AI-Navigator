@@ -87,6 +87,13 @@ with st.sidebar:
     if "sb_situation" not in st.session_state: st.session_state.sb_situation = "직접 입력"
     if "sb_output" not in st.session_state: st.session_state.sb_output = []
 
+    # 2) DB 연결 상태 표시
+    if not df_tools.empty:
+        st.success("✅ DB 연결 완료")
+    else:
+        st.error("DB 연결 실패")
+
+    
     st.divider()
     user_api_key = st.text_input("🔑 (선택) 내 Gemini API Key 사용", type="password", help="입력하면 더 빠르고 끊김 없이 이용 가능합니다.")
     
@@ -94,23 +101,17 @@ with st.sidebar:
         st.session_state["USER_API_KEY"] = user_api_key
     
 # config/ai_manager에서 키 설정할 때:
-def configure_genai():
-    # 1순위: 사용자가 입력한 키
-    if "USER_API_KEY" in st.session_state:
-        api_key = st.session_state["USER_API_KEY"]
-    # 2순위: 내 공용 키
-    else:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        
-    genai.configure(api_key=api_key)
-    # ...
+    def configure_genai():
+        # 1순위: 사용자가 입력한 키
+        if "USER_API_KEY" in st.session_state:
+            api_key = st.session_state["USER_API_KEY"]
+        # 2순위: 내 공용 키
+        else:
+            api_key = st.secrets["GOOGLE_API_KEY"]
+            
+        genai.configure(api_key=api_key)
+        # ...
     st.divider()
-
-    # 2) DB 연결 상태 표시
-    if not df_tools.empty:
-        st.success("✅ DB 연결 완료")
-    else:
-        st.error("DB 연결 실패")
 
     # 3) 직무 선택창
     if not df_tools.empty:

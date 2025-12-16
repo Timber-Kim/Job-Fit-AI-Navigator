@@ -13,7 +13,7 @@ def configure_genai():
     try:
         api_key = None
         
-        # 1. 사용자 입력 키 우선 사용 (공백도 제거하여 유효성 확인)
+        # 1. 사용자 입력 키 우선 사용
         user_key_input = st.session_state.get("USER_API_KEY", "").strip()
         
         if user_key_input:

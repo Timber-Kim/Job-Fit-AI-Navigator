@@ -100,7 +100,7 @@ And that became Job-Fit AI Navigator.
 <br>
 
 ## ⚙️ How It Works
-<img width="1902" height="837" alt="image" src="https://github.com/user-attachments/assets/e6ec31b0-8aa8-4c27-8799-e1c49bfb2e32" />
+<img width="1478" height="762" alt="image" src="https://github.com/user-attachments/assets/0b9edac1-cd9e-4769-aada-7edc3e5d39a0" />
 
 
 🔍 1. 듀얼 인풋 인터페이스 (Dual-Input Interface)

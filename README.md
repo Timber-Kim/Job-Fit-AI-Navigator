@@ -113,12 +113,13 @@ Google Sheet DB에 있는 데이터를 실시간으로 호출하여 직무(Job),
 
 옵션 선택 시, 최적화된 프롬프트가 자동으로 생성되어 추천 AI 툴이 대화창에 입력됩니다.
 
->Users can interact in two ways, synchronized in real-time with Google Drive DB.
->Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
-
 - 💬 직접 질문 (Direct Input):
 
 사용자가 자유로운 자연어로 질문하면 Gemini가 의도를 파악하여 답변합니다.
+
+>Users can interact in two ways, synchronized in real-time with Google Drive DB.
+>Fetches live data from Google Sheets. Automatically generates optimized prompts based on selection.
+> When users ask questions in natural language, Gemini identifies the intent and provides a response.
 <br>
 
 🧠 2. Gemini 기반 추천 엔진 (LLM-Powered Recommendation)

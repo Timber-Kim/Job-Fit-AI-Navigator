@@ -137,8 +137,13 @@ def get_ai_response(messages, df_tools):
 
     csv_context = ""
     if not df_tools.empty:
-        display_cols = [c for c in df_tools.columns if c != '비추천수']
-        csv_context = df_tools[display_cols].to_string(index=False)
+        # 1. AI 판단에 불필요한 컬럼 제거 (예: 타임스탬프, 긴 설명 등)
+        essential_cols = ['추천도구', '직무', '상황', '특징_및_팁', '추천수', '비추천수', '링크']
+        
+        # 실제 데이터프레임에 있는 컬럼만 교집합으로 선택 (에러 방지)
+        target_cols = [c for c in essential_cols if c in df_tools.columns]
+        
+        csv_context = df_tools[target_cols].to_string(index=False)
     
     full_prompt = SYSTEM_PROMPT_TEMPLATE.format(csv_context=csv_context)
     model = genai.GenerativeModel(MODEL_NAME, system_instruction=full_prompt)

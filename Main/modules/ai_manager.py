@@ -13,7 +13,6 @@ def configure_genai():
     try:
         api_key = None
         user_key_input = st.session_state.get("USER_API_KEY", "").strip()
-        
         if user_key_input:
             api_key = user_key_input
         elif "GOOGLE_API_KEY" in st.secrets:
@@ -22,30 +21,39 @@ def configure_genai():
         if not api_key: return None
 
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.7}) # 온도를 낮춰서 정확도 향상
-        
+        return genai.GenerativeModel(MODEL_NAME, generation_config={"temperature": 0.7})
     except Exception as e:
         print(f"모델 설정 오류: {e}")
         return None
 
 # ---------------------------------------------------------
-# 🛠️ AI 호출 공통 처리 (유료 플랜 최적화: 재시도 최소화)
+# 🛠️ [503 오류 대응] 스마트 AI 호출 처리
 # ---------------------------------------------------------
 def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     model = configure_genai()
     if not model: return fallback_value
 
-    max_retries = 1      # 유료 플랜은 1번만 재시도해도 충분
-    wait_time = 2        # 대기 시간 단축
+    # 🚨 수정된 전략: 짧고 굵게 시도
+    # 503은 서버가 힘든 상태이므로, 너무 자주 찌르면 오히려 실패 확률이 높음.
+    max_retries = 2       # 최대 2번 재시도 (총 3회) -> 4회에서 3회로 줄임
+    base_wait_time = 2    # 기본 대기 시간 2초
 
     with st.status(status_msg, expanded=False) as status:
         for attempt in range(max_retries + 1):
             try:
+                # 시도 로그 출력 (터미널 확인용)
+                print(f"📡 [AI 연결 시도] {attempt+1}회차...")
+                
                 response = model.generate_content(prompt)
+                
+                # 빈 응답 체크
                 if not response.parts:
+                    print("⚠️ [경고] 빈 응답 수신 (Safety Filter 등)")
                     return fallback_value
                 
                 text = response.text.strip()
+                
+                # 마크다운 제거 및 결과 반환 (성공 시 바로 탈출)
                 if "```" in text:
                     text = text.replace("```json", "").replace("```", "")
 
@@ -63,14 +71,45 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                     status.update(label="✅ 처리 완료!", state="complete", expanded=False)
                     return text
 
+            # 🚨 503 Service Unavailable (서버 과부하/점검) 처리
+            except exceptions.ServiceUnavailable:
+                if attempt < max_retries:
+                    # 점진적으로 대기 시간 늘리기 (2초 -> 4초)
+                    sleep_time = base_wait_time * (2 ** attempt)
+                    msg = f"🚧 구글 서버가 혼잡합니다(503). {sleep_time}초 후 다시 연결합니다... ({attempt+1}/{max_retries})"
+                    print(f"🛑 [503 오류] {msg}")
+                    status.update(label=msg, state="running")
+                    time.sleep(sleep_time)
+                else:
+                    status.update(label="❌ 서버 응답 없음 (Google 503)", state="error")
+                    st.error("📉 **Google AI 서버가 현재 응답하지 않습니다.** (503 Error)\n잠시 후 다시 시도해 주세요.")
+                    return fallback_value
+
+            # 429 Resource Exhausted (사용량 초과)
+            except exceptions.ResourceExhausted:
+                if attempt < max_retries:
+                    msg = f"⏳ 사용량이 많아 대기 중... ({attempt+1}/{max_retries})"
+                    status.update(label=msg, state="running")
+                    time.sleep(base_wait_time)
+                else:
+                    status.update(label="❌ 사용량 초과 (재시도 실패)", state="error")
+                    return fallback_value
+            
+            # 400 API Key 오류
             except exceptions.InvalidArgument:
-                status.update(label="⛔ API 키 오류!", state="error")
+                status.update(label="⛔ API 키 오류", state="error")
                 if "USER_API_KEY" in st.session_state: del st.session_state["USER_API_KEY"]
                 return fallback_value
-            except Exception:
-                time.sleep(1)
+                
+            # 그 외 알 수 없는 오류
+            except Exception as e:
+                print(f"💥 [기타 에러] {e}")
+                if attempt < max_retries:
+                    time.sleep(1)
+                else:
+                    status.update(label="❌ 오류 발생", state="error")
+                    return fallback_value
 
-    status.update(label="❌ 응답 실패", state="error")
     return fallback_value
 
 # ---------------------------------------------------------
@@ -128,7 +167,7 @@ def parse_tools(user_question, ai_answer):
       }}
     ]
     
-    * 주의: 워크플로우 레시피에 언급된 도구들도 포함해서 추출해줘.
+    * 주의: ⚡ 레시피: 에 언급된 도구들은 무시해줘.
     * 오직 JSON 데이터만 출력해. (마크다운 없이)
     """
 

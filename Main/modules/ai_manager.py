@@ -56,22 +56,38 @@ def configure_genai():
 # ---------------------------------------------------------
 # AI 호출 공통 처리 함수
 # ---------------------------------------------------------
+
+
+# ---------------------------------------------------------
+# AI 호출 공통 처리
+# ---------------------------------------------------------
 def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     """
-    AI 호출, 429 오류 재시도, 400 키 오류 감지, 상태바 표시, JSON 파싱을 통합 관리
+    유료 플랜용: 불필요한 재시도를 줄이고, 로그를 상세히 출력합니다.
     """
     model = configure_genai()
     if not model: return fallback_value
 
-    max_retries = 3
-    wait_time = 30
+    # 🚨 유료 플랜 세팅 (재시도 최소화)
+    max_retries = 1      # 최대 1번만 재시도 (총 2회 시도)
+    wait_time = 2        # 대기 시간 2초로 단축
 
     with st.status(status_msg, expanded=False) as status:
-        for attempt in range(max_retries):
+        for attempt in range(max_retries + 1): # range(2) -> 0, 1
             try:
+                # [디버그 로그] 시도 횟수 출력
+                print(f"🚀 [AI 호출 시도] {attempt+1}/{max_retries+1}회 차 시작...")
+                
                 # 1. AI 응답 생성
                 response = model.generate_content(prompt)
+                
+                # [중요] 응답이 막혔거나 비었는지 확인
+                if not response.parts:
+                    print("⚠️ [경고] AI 응답이 비어있음 (Safety Filter 등 가능성)")
+                    # 여기서 재시도하지 말고 멈추거나, 텍스트가 없다고 처리
+                
                 text = response.text.strip()
+                print(f"✅ [성공] 응답 수신 완료 (길이: {len(text)})")
 
                 # 2. 마크다운 코드블럭 제거
                 if "```" in text:
@@ -87,40 +103,41 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
                         status.update(label="✅ 처리 완료!", state="complete", expanded=False)
                         return result
                     except json.JSONDecodeError:
-                        print(f"JSON 파싱 실패: {text}")
+                        print(f"❌ [에러] JSON 파싱 실패: {text[:50]}...")
                         status.update(label="⚠️ 데이터 형식 오류", state="error")
                         return fallback_value
                 else:
                     status.update(label="✅ 처리 완료!", state="complete", expanded=False)
                     return text
 
-            # 400 API Key 오류 처리
+            # 400 API Key 오류 처리 (즉시 중단)
             except exceptions.InvalidArgument as e:
-                err_msg = str(e)
-                if "API key not valid" in err_msg or "API_KEY_INVALID" in err_msg:
-                    # 사용자에게 명확한 에러 메시지 표시
-                    status.update(label="⛔ API 키 오류!", state="error")
-                    st.error("🚨 **입력하신 API Key가 올바르지 않습니다.**\n\n오타가 없는지, 공백이 들어가지 않았는지 확인해 주세요. (사이드바에서 키를 지우면 공용 키로 자동 전환됩니다.)")
-                    return fallback_value
-                else:
-                    # 진짜 요청 내용이 잘못된 경우
-                    status.update(label="❌ 잘못된 요청입니다 (400)", state="error")
-                    return fallback_value
+                print(f"⛔ [치명적 에러] API 키 오류: {e}")
+                status.update(label="⛔ API 키 오류!", state="error")
+                st.error("🚨 API Key가 올바르지 않습니다.")
+                if "USER_API_KEY" in st.session_state:
+                    del st.session_state["USER_API_KEY"]
+                return fallback_value # 재시도 금지
 
-            # 429 사용량 초과 처리
+            # 429 사용량 초과 (유료에서는 드묾)
             except exceptions.ResourceExhausted:
-                msg = f"⏳ 사용량이 많아 잠시 대기 중입니다... ({attempt + 1}/{max_retries})"
+                print(f"⏳ [대기] 429 Rate Limit 발생. {wait_time}초 대기...")
+                msg = f"잠시 숨 고르는 중... ({attempt + 1}/{max_retries + 1})"
                 status.update(label=msg, state="running")
                 time.sleep(wait_time)
 
-            # 기타 오류 처리
+            # 500 서버 오류 등 기타 오류
             except Exception as e:
-                print(f"AI 호출 중 오류: {e}")
-                status.update(label="❌ 오류 발생", state="error")
-                return fallback_value
+                print(f"💥 [알 수 없는 에러] {str(e)}")
+                # 마지막 시도가 아니면 잠시 대기
+                if attempt < max_retries:
+                     status.update(label=f"⚠️ 일시적 오류, 재시도 중...", state="running")
+                     time.sleep(1)
+                else:
+                    status.update(label="❌ 오류 발생 (서버 응답 없음)", state="error")
+                    return fallback_value
 
-    # 재시도 횟수 초과 시
-    status.update(label="❌ 응답 시간 초과 (재시도 실패)", state="error")
+    status.update(label="❌ 응답 실패", state="error")
     return fallback_value
 
 
@@ -137,10 +154,13 @@ def get_ai_response(messages, df_tools):
 
     csv_context = ""
     if not df_tools.empty:
+        # '비추천수' 제외하고 컨텍스트 제공
         display_cols = [c for c in df_tools.columns if c != '비추천수']
         csv_context = df_tools[display_cols].to_string(index=False)
     
     full_prompt = SYSTEM_PROMPT_TEMPLATE.format(csv_context=csv_context)
+    
+    # 시스템 프롬프트 적용
     model = genai.GenerativeModel(MODEL_NAME, system_instruction=full_prompt)
 
     history = [
@@ -148,7 +168,7 @@ def get_ai_response(messages, df_tools):
         for m in messages[:-1]
     ]
     
-    # 여기는 Main.py의 get_ai_response_safe 함수에서 에러를 잡으므로 try-except 생략
+    # ⚠️ try-except 없음 (main.py에서 429 에러 감지용)
     chat = model.start_chat(history=history)
     response = chat.send_message(messages[-1]["content"])
     

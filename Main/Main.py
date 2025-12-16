@@ -215,7 +215,7 @@ for i, m in enumerate(st.session_state.messages):
 # ==========================================
 def quick_ask(job, sit, out):
     outs_msg = f" (필요한 결과물: {', '.join(out)})" if out else ""
-    q = f"나 **{job}**인데, **{sit}** 업무 할 때 도움되는 AI 도구 좀 추천해 줘.{outs_msg}"
+    q = f"나의 직무는 **{job}**인데, **{sit}** 업무 할 때 도움되는 AI 도구 좀 추천해 줘.{outs_msg}"
     st.session_state.messages.append({"role": "user", "content": q})
     st.session_state.sb_job = "직접 입력"
     st.session_state.sb_situation = "직접 입력"

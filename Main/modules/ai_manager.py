@@ -33,9 +33,7 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     model = configure_genai()
     if not model: return fallback_value
 
-    # 🚨 수정된 전략: 짧고 굵게 시도
-    # 503은 서버가 힘든 상태이므로, 너무 자주 찌르면 오히려 실패 확률이 높음.
-    max_retries = 2       # 최대 2번 재시도 (총 3회) -> 4회에서 3회로 줄임
+    max_retries = 1       # 최대 1번 재시도
     base_wait_time = 2    # 기본 대기 시간 2초
 
     with st.status(status_msg, expanded=False) as status:
@@ -113,7 +111,7 @@ def call_ai_common(prompt, status_msg, output_type="text", fallback_value=None):
     return fallback_value
 
 # ---------------------------------------------------------
-# 2. 메인 AI 답변 생성 (데이터 다이어트 적용)
+# 2. 메인 AI 답변 생성
 # ---------------------------------------------------------
 @st.cache_data(show_spinner=False, ttl=3600)
 def get_ai_response(messages, df_tools):
